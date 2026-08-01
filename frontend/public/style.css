@@ -1,0 +1,174 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", sans-serif;
+  background: #f6f5ff;
+  color: #1f1a3d;
+}
+
+.hero {
+  text-align: center;
+  padding: 48px 20px 32px;
+  background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+  color: white;
+}
+
+.hero h1 {
+  font-size: 2.4rem;
+  margin: 0 0 8px;
+}
+
+.hero .accent {
+  color: #ffeaa7;
+}
+
+.hero p {
+  margin: 0;
+  opacity: 0.9;
+}
+
+main {
+  max-width: 640px;
+  margin: -24px auto 60px;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(108, 92, 231, 0.12);
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.2rem;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  font-weight: 600;
+  gap: 6px;
+  color: #4a4470;
+}
+
+input {
+  font-size: 1rem;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #ddd8f5;
+  outline: none;
+}
+
+input:focus {
+  border-color: #6c5ce7;
+}
+
+button {
+  margin-top: 6px;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #6c5ce7;
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+button:hover {
+  background: #5a4bd6;
+}
+
+button:disabled {
+  background: #b9b2ec;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #d63031;
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+
+.hidden {
+  display: none;
+}
+
+.summary {
+  color: #4a4470;
+}
+
+.week-block {
+  border: 1px solid #eee7ff;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.week-block h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  color: #6c5ce7;
+}
+
+.week-block .goal {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.task-item input[type="checkbox"] {
+  width: auto;
+}
+
+.task-item.done label {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.resources {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: #6a6390;
+}
+
+.history-list .history-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #f0edff;
+  cursor: pointer;
+}
+
+.history-list .history-item:hover {
+  background: #faf9ff;
+}
+
+.history-list .history-item:last-child {
+  border-bottom: none;
+}
+
+.muted {
+  color: #999;
+  font-size: 0.9rem;
+}

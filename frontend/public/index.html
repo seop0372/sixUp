@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SixUp — 6주 취미 커리큘럼</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="hero">
+    <h1>Six<span class="accent">Up</span></h1>
+    <p>관심사만 입력하면, AI가 6주짜리 맞춤 취미 커리큘럼을 짜드려요.</p>
+  </header>
+
+  <main>
+    <section class="card form-card">
+      <h2>새 커리큘럼 만들기</h2>
+      <form id="curriculum-form">
+        <label>
+          관심 분야
+          <input type="text" id="interest" placeholder="예: 캘리그라피, 클라이밍, 우쿨렐레" required />
+        </label>
+        <label>
+          주당 가능 시간 (시간)
+          <input type="number" id="hoursPerWeek" min="1" max="40" placeholder="예: 5" required />
+        </label>
+        <label>
+          예산 (선택)
+          <input type="text" id="budget" placeholder="예: 10만원 이내, 상관없음" />
+        </label>
+        <button type="submit" id="submit-btn">6주 커리큘럼 만들기</button>
+      </form>
+      <p id="error-msg" class="error hidden"></p>
+    </section>
+
+    <section id="result-section" class="card hidden">
+      <h2 id="result-title"></h2>
+      <p id="result-summary" class="summary"></p>
+      <div id="weeks-container"></div>
+    </section>
+
+    <section class="card">
+      <h2>지난 커리큘럼</h2>
+      <div id="history-list" class="history-list">
+        <p class="muted">불러오는 중...</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

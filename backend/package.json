@@ -1,0 +1,16 @@
+{
+  "name": "sixup-backend",
+  "version": "0.1.0",
+  "description": "SixUp - AI 기반 6주 취미 커리큘럼 생성기 백엔드",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5"
+  }
+}
