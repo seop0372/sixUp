@@ -8,13 +8,14 @@
 </head>
 <body>
   <header class="hero">
+    <span class="eyebrow">Trailhead · 취미 시작점</span>
     <h1>Six<span class="accent">Up</span></h1>
-    <p>관심사만 입력하면, AI가 6주짜리 맞춤 취미 커리큘럼을 짜드려요.</p>
+    <p>어디서부터 시작할지 모르겠다면, 관심사 하나만 알려주세요. AI가 6주짜리 경로를 그려드려요.</p>
   </header>
 
   <main>
     <section class="card form-card">
-      <h2>새 커리큘럼 만들기</h2>
+      <h2>새 경로 그리기</h2>
       <form id="curriculum-form">
         <label>
           관심 분야
@@ -28,22 +29,16 @@
           예산 (선택)
           <input type="text" id="budget" placeholder="예: 10만원 이내, 상관없음" />
         </label>
-        <button type="submit" id="submit-btn">6주 커리큘럼 만들기</button>
+        <button type="submit" id="submit-btn">6주 경로 만들기</button>
       </form>
       <p id="error-msg" class="error hidden"></p>
     </section>
 
-    <section id="result-section" class="card hidden">
-      <h2 id="result-title"></h2>
-      <p id="result-summary" class="summary"></p>
-      <div id="weeks-container"></div>
-    </section>
+    <section id="result" class="card result-card hidden"></section>
 
-    <section class="card">
-      <h2>지난 커리큘럼</h2>
-      <div id="history-list" class="history-list">
-        <p class="muted">불러오는 중...</p>
-      </div>
+    <section class="card history-card">
+      <h2>지난 경로</h2>
+      <div id="history-list"></div>
     </section>
   </main>
 

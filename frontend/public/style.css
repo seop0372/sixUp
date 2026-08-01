@@ -1,174 +1,359 @@
+/* ============================================
+   SixUp — "Trailhead" 디자인 시스템
+   취미를 새로 시작하는 걸 등산로 입구에 서는 것에 비유
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+
+:root {
+  --ink: #1F3A2E;        /* 짙은 숲색 - 텍스트, 헤더 */
+  --ink-soft: #4A5C50;   /* 부드러운 숲색 - 보조 텍스트 */
+  --amber: #D98E3F;      /* 앰버 - 액센트, CTA */
+  --amber-deep: #B5701F; /* 진한 앰버 - 호버 */
+  --paper: #F7F4EC;      /* 종이빛 배경 */
+  --paper-card: #FFFDF8; /* 카드 배경 (종이보다 살짝 밝음) */
+  --line: #DDD5C2;       /* 구분선 */
+  --trail-done: #6B8E5A; /* 완료 표시 - 이끼색 */
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", sans-serif;
-  background: #f6f5ff;
-  color: #1f1a3d;
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--paper);
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(31,58,46,0.04) 1px, transparent 0);
+  background-size: 24px 24px;
+  color: var(--ink);
+  line-height: 1.5;
 }
 
+/* ---------- 히어로 ---------- */
 .hero {
   text-align: center;
-  padding: 48px 20px 32px;
-  background: linear-gradient(135deg, #6c5ce7, #a29bfe);
-  color: white;
+  padding: 64px 20px 40px;
+  position: relative;
+}
+
+.hero::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 2px;
+  background: var(--amber);
+  margin: 28px auto 0;
 }
 
 .hero h1 {
-  font-size: 2.4rem;
-  margin: 0 0 8px;
+  font-family: 'Fraunces', serif;
+  font-size: 52px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
 }
 
 .hero .accent {
-  color: #ffeaa7;
+  color: var(--amber);
+  font-style: italic;
 }
 
 .hero p {
+  color: var(--ink-soft);
   margin: 0;
-  opacity: 0.9;
+  font-size: 16px;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+.hero .eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber-deep);
+  display: block;
+  margin-bottom: 14px;
 }
 
 main {
   max-width: 640px;
-  margin: -24px auto 60px;
-  padding: 0 16px;
+  margin: 0 auto;
+  padding: 0 20px 60px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 28px;
 }
 
 .card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 8px 24px rgba(108, 92, 231, 0.12);
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 32px;
+  position: relative;
+}
+
+/* 카드 모서리에 트레일 마커 느낌의 작은 표시 */
+.card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 24px;
+  width: 24px;
+  height: 3px;
+  background: var(--amber);
 }
 
 .card h2 {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
   margin-top: 0;
-  font-size: 1.2rem;
+  font-size: 20px;
+  letter-spacing: -0.01em;
 }
 
 form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
 
 label {
+  font-size: 13px;
+  font-weight: 600;
   display: flex;
   flex-direction: column;
-  font-size: 0.9rem;
-  font-weight: 600;
-  gap: 6px;
-  color: #4a4470;
+  gap: 7px;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 input {
-  font-size: 1rem;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #ddd8f5;
-  outline: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  padding: 12px 14px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  font-weight: 400;
+  color: var(--ink);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+input::placeholder {
+  color: #A79E8A;
 }
 
 input:focus {
-  border-color: #6c5ce7;
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(217,142,63,0.15);
 }
 
 button {
   margin-top: 6px;
-  padding: 12px;
+  background: var(--ink);
+  color: var(--paper);
   border: none;
-  border-radius: 10px;
-  background: #6c5ce7;
-  color: white;
-  font-size: 1rem;
-  font-weight: 700;
+  padding: 14px;
+  border-radius: 3px;
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.01em;
   transition: background 0.15s ease;
 }
 
-button:hover {
-  background: #5a4bd6;
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
-button:disabled {
-  background: #b9b2ec;
-  cursor: not-allowed;
+button:hover:not(:disabled) {
+  background: var(--amber-deep);
 }
 
 .error {
-  color: #d63031;
-  font-size: 0.9rem;
-  margin-top: 10px;
+  color: #B23A3A;
+  font-size: 14px;
+  margin-top: 12px;
+  font-weight: 500;
 }
 
 .hidden {
   display: none;
 }
 
-.summary {
-  color: #4a4470;
+/* ---------- 진행률: 트레일 경로점 스타일 ---------- */
+.progress-wrap {
+  margin: 4px 0 28px;
 }
 
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--amber);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+/* ---------- 주차 블록: 등산로 이정표 느낌 ---------- */
 .week-block {
-  border: 1px solid #eee7ff;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
+  border-top: 1px solid var(--line);
+  padding: 20px 0;
+  position: relative;
+  padding-left: 44px;
+}
+
+.week-block:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.week-block::before {
+  content: attr(data-week);
+  position: absolute;
+  left: 0;
+  top: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 2px solid var(--amber);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--amber-deep);
+}
+
+.week-block:first-child::before {
+  top: 0;
 }
 
 .week-block h3 {
   margin: 0 0 6px;
-  font-size: 1rem;
-  color: #6c5ce7;
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .week-block .goal {
-  font-weight: 600;
-  margin-bottom: 8px;
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  font-style: italic;
 }
 
-.task-item {
+.task {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  padding: 6px 0;
 }
 
-.task-item input[type="checkbox"] {
-  width: auto;
+.task input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  accent-color: var(--trail-done);
+  flex-shrink: 0;
 }
 
-.task-item.done label {
+.task.done span {
   text-decoration: line-through;
-  color: #999;
+  color: #A79E8A;
 }
 
-.resources {
-  margin-top: 8px;
-  font-size: 0.85rem;
-  color: #6a6390;
-}
-
-.history-list .history-item {
-  padding: 10px 0;
-  border-bottom: 1px solid #f0edff;
+/* ---------- 히스토리 목록 ---------- */
+.history-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
   cursor: pointer;
+  transition: padding-left 0.15s ease;
 }
 
-.history-list .history-item:hover {
-  background: #faf9ff;
-}
-
-.history-list .history-item:last-child {
+.history-item:last-child {
   border-bottom: none;
 }
 
+.history-item:hover {
+  padding-left: 6px;
+  color: var(--amber-deep);
+}
+
+.history-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.history-percent {
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--trail-done);
+  background: rgba(107,142,90,0.12);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
 .muted {
-  color: #999;
-  font-size: 0.9rem;
+  color: #A79E8A;
+  font-size: 14px;
+}
+
+/* ---------- 접근성: 키보드 포커스 ---------- */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--amber-deep);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+/* ---------- 모바일 ---------- */
+@media (max-width: 480px) {
+  .hero h1 {
+    font-size: 38px;
+  }
+  .card {
+    padding: 22px;
+  }
 }

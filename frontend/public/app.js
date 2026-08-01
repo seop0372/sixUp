@@ -1,100 +1,115 @@
 const form = document.getElementById('curriculum-form');
-const submitBtn = document.getElementById('submit-btn');
 const errorMsg = document.getElementById('error-msg');
-const resultSection = document.getElementById('result-section');
-const resultTitle = document.getElementById('result-title');
-const resultSummary = document.getElementById('result-summary');
-const weeksContainer = document.getElementById('weeks-container');
+const resultSection = document.getElementById('result');
 const historyList = document.getElementById('history-list');
+const submitBtn = document.getElementById('submit-btn');
 
 function showError(msg) {
   errorMsg.textContent = msg;
   errorMsg.classList.remove('hidden');
 }
 
-function clearError() {
+function hideError() {
   errorMsg.classList.add('hidden');
 }
 
-function renderCurriculum(curriculum) {
-  resultTitle.textContent = curriculum.title || '나만의 6주 커리큘럼';
-  resultSummary.textContent = curriculum.summary || '';
-  weeksContainer.innerHTML = '';
+// 전체 할 일 중 완료된 비율을 계산해요.
+function calcProgress(weeks) {
+  let total = 0;
+  let done = 0;
+  weeks.forEach((week) => {
+    week.tasks.forEach((task) => {
+      total += 1;
+      if (task.done) done += 1;
+    });
+  });
+  const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+  return { total, done, percent };
+}
 
-  (curriculum.weeks || []).forEach((week, weekIndex) => {
+function renderProgressBar(weeks) {
+  const { done, total, percent } = calcProgress(weeks);
+  return `
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>진행률</span>
+        <span>${done} / ${total} (${percent}%)</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-bar-fill" style="width: ${percent}%"></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCurriculum(item) {
+  resultSection.classList.remove('hidden');
+  resultSection.innerHTML = `<h2>${item.title}</h2>${renderProgressBar(item.weeks)}`;
+
+  item.weeks.forEach((week, weekIndex) => {
     const block = document.createElement('div');
     block.className = 'week-block';
+    block.setAttribute('data-week', week.week);
 
-    const heading = document.createElement('h3');
-    heading.textContent = `${week.week}주차`;
-    block.appendChild(heading);
+    const tasksHtml = week.tasks
+      .map(
+        (task, taskIndex) => `
+        <label class="task ${task.done ? 'done' : ''}">
+          <input type="checkbox" data-week="${weekIndex}" data-task="${taskIndex}" ${
+          task.done ? 'checked' : ''
+        } />
+          <span>${task.text}</span>
+        </label>`
+      )
+      .join('');
 
-    const goal = document.createElement('div');
-    goal.className = 'goal';
-    goal.textContent = week.goal || '';
-    block.appendChild(goal);
-
-    (week.tasks || []).forEach((task, taskIndex) => {
-      const key = `${weekIndex}-${taskIndex}`;
-      const done = curriculum.progress && curriculum.progress[key];
-
-      const item = document.createElement('div');
-      item.className = 'task-item' + (done ? ' done' : '');
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.checked = !!done;
-      checkbox.id = `task-${key}`;
-      checkbox.addEventListener('change', async () => {
-        item.classList.toggle('done', checkbox.checked);
-        try {
-          await fetch(`/api/curriculum/${curriculum.id}/progress`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              weekIndex,
-              taskIndex,
-              done: checkbox.checked,
-            }),
-          });
-        } catch (e) {
-          console.error('진도 저장 실패', e);
-        }
-      });
-
-      const label = document.createElement('label');
-      label.htmlFor = checkbox.id;
-      label.textContent = task;
-
-      item.appendChild(checkbox);
-      item.appendChild(label);
-      block.appendChild(item);
-    });
-
-    if (week.resources && week.resources.length) {
-      const resources = document.createElement('div');
-      resources.className = 'resources';
-      resources.textContent = '참고: ' + week.resources.join(' · ');
-      block.appendChild(resources);
-    }
-
-    weeksContainer.appendChild(block);
+    block.innerHTML = `
+      <h3>${week.week}주차</h3>
+      <p class="goal">${week.goal}</p>
+      ${tasksHtml}
+    `;
+    resultSection.appendChild(block);
   });
 
-  resultSection.classList.remove('hidden');
-  resultSection.scrollIntoView({ behavior: 'smooth' });
+  resultSection.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    cb.addEventListener('change', async (e) => {
+      const weekIndex = e.target.dataset.week;
+      const taskIndex = e.target.dataset.task;
+      const done = e.target.checked;
+
+      e.target.closest('.task').classList.toggle('done', done);
+
+      // 로컬 데이터도 갱신해서 진행률 바가 즉시 반영되게 해요.
+      item.weeks[weekIndex].tasks[taskIndex].done = done;
+      const progressWrap = resultSection.querySelector('.progress-wrap');
+      if (progressWrap) {
+        progressWrap.outerHTML = renderProgressBar(item.weeks);
+      }
+
+      try {
+        await fetch(`/api/curriculum/${item.id}/progress`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ weekIndex, taskIndex, done }),
+        });
+      } catch (err) {
+        console.error('진도 저장 실패', err);
+      }
+    });
+  });
 }
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  clearError();
+  hideError();
+  resultSection.classList.add('hidden');
 
   const interest = document.getElementById('interest').value.trim();
-  const hoursPerWeek = document.getElementById('hoursPerWeek').value.trim();
+  const hoursPerWeek = document.getElementById('hoursPerWeek').value;
   const budget = document.getElementById('budget').value.trim();
 
   submitBtn.disabled = true;
-  submitBtn.textContent = '커리큘럼 만드는 중... (10~20초 소요)';
+  submitBtn.textContent = '만드는 중... (몇 초 걸려요)';
 
   try {
     const res = await fetch('/api/curriculum', {
@@ -135,8 +150,19 @@ async function loadHistory() {
     list.forEach((item) => {
       const el = document.createElement('div');
       el.className = 'history-item';
-      el.textContent = `${item.title || item.interest} — ${new Date(item.createdAt).toLocaleString('ko-KR')}`;
-      el.addEventListener('click', () => renderCurriculum(item));
+      const percent = item.progress ? item.progress.percent : 0;
+      el.innerHTML = `
+        <div class="history-item-row">
+          <span>${item.title || item.interest} — ${new Date(item.createdAt).toLocaleString('ko-KR')}</span>
+          <span class="history-percent">${percent}%</span>
+        </div>
+      `;
+      el.addEventListener('click', async () => {
+        const res = await fetch(`/api/curriculum/${item.id}`);
+        const full = await res.json();
+        renderCurriculum(full);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
       historyList.appendChild(el);
     });
   } catch (err) {
