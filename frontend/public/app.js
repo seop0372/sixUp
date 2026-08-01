@@ -4,6 +4,15 @@ const resultSection = document.getElementById('result');
 const historyList = document.getElementById('history-list');
 const submitBtn = document.getElementById('submit-btn');
 
+const questionsSection = document.getElementById('questions-section');
+const questionsForm = document.getElementById('questions-form');
+const questionsList = document.getElementById('questions-list');
+const questionsSubmitBtn = document.getElementById('questions-submit-btn');
+const questionsErrorMsg = document.getElementById('questions-error-msg');
+
+// 질문 단계와 최종 생성 단계 사이에 들고 다닐 기본 입력값이에요.
+let pendingBase = null;
+
 function showError(msg) {
   errorMsg.textContent = msg;
   errorMsg.classList.remove('hidden');
@@ -11,6 +20,19 @@ function showError(msg) {
 
 function hideError() {
   errorMsg.classList.add('hidden');
+}
+
+function showQuestionsError(msg) {
+  questionsErrorMsg.textContent = msg;
+  questionsErrorMsg.classList.remove('hidden');
+}
+
+function hideQuestionsError() {
+  questionsErrorMsg.classList.add('hidden');
+}
+
+function escapeAttr(str) {
+  return String(str).replace(/"/g, '&quot;');
 }
 
 // AI 응답이 문자열이거나, text/title/description 중 다른 키를 쓴 객체일 수 있어서
@@ -106,9 +128,64 @@ function renderCurriculum(item) {
   });
 }
 
+function renderQuestions(questions) {
+  questionsList.innerHTML = questions
+    .map((q, i) => {
+      const type = q.type === 'number' ? 'number' : 'text';
+      return `
+        <label>
+          ${q.question}
+          <input
+            type="${type}"
+            data-question-index="${i}"
+            data-question-text="${escapeAttr(q.question)}"
+            data-question-type="${type}"
+          />
+        </label>`;
+    })
+    .join('');
+
+  hideQuestionsError();
+  questionsSection.classList.remove('hidden');
+  questionsSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function generateCurriculum(answers) {
+  if (!pendingBase) return;
+
+  questionsSubmitBtn.disabled = true;
+  questionsSubmitBtn.textContent = '만드는 중... (몇 초 걸려요)';
+
+  try {
+    const res = await fetch('/api/curriculum', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...pendingBase, answers }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      showQuestionsError(data.error || '커리큘럼 생성에 실패했어요.');
+      return;
+    }
+
+    questionsSection.classList.add('hidden');
+    renderCurriculum(data);
+    loadHistory();
+  } catch (err) {
+    console.error(err);
+    showQuestionsError('서버에 연결할 수 없어요. 백엔드가 실행 중인지 확인해주세요.');
+  } finally {
+    questionsSubmitBtn.disabled = false;
+    questionsSubmitBtn.textContent = '6주 경로 만들기';
+  }
+}
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   hideError();
+  questionsSection.classList.add('hidden');
   resultSection.classList.add('hidden');
 
   const interest = document.getElementById('interest').value.trim();
@@ -116,10 +193,10 @@ form.addEventListener('submit', async (e) => {
   const budget = document.getElementById('budget').value.trim();
 
   submitBtn.disabled = true;
-  submitBtn.textContent = '만드는 중... (몇 초 걸려요)';
+  submitBtn.textContent = '맞춤 질문 만드는 중...';
 
   try {
-    const res = await fetch('/api/curriculum', {
+    const res = await fetch('/api/curriculum/questions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ interest, hoursPerWeek, budget }),
@@ -128,19 +205,37 @@ form.addEventListener('submit', async (e) => {
     const data = await res.json();
 
     if (!res.ok) {
-      showError(data.error || '커리큘럼 생성에 실패했어요.');
+      showError(data.error || '맞춤 질문을 만드는 데 실패했어요.');
       return;
     }
 
-    renderCurriculum(data);
-    loadHistory();
+    pendingBase = { interest, hoursPerWeek, budget };
+
+    if (data.questions && data.questions.length) {
+      renderQuestions(data.questions);
+    } else {
+      await generateCurriculum([]);
+    }
   } catch (err) {
     console.error(err);
     showError('서버에 연결할 수 없어요. 백엔드가 실행 중인지 확인해주세요.');
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = '6주 커리큘럼 만들기';
+    submitBtn.textContent = '다음: 맞춤 질문 받기';
   }
+});
+
+questionsForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hideQuestionsError();
+
+  const answers = Array.from(questionsList.querySelectorAll('input')).map((input) => ({
+    question: input.dataset.questionText,
+    type: input.dataset.questionType,
+    answer: input.value.trim(),
+  }));
+
+  await generateCurriculum(answers);
 });
 
 async function loadHistory() {

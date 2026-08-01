@@ -29,9 +29,19 @@
           예산 (선택)
           <input type="text" id="budget" placeholder="예: 10만원 이내, 상관없음" />
         </label>
-        <button type="submit" id="submit-btn">6주 경로 만들기</button>
+        <button type="submit" id="submit-btn">다음: 맞춤 질문 받기</button>
       </form>
       <p id="error-msg" class="error hidden"></p>
+    </section>
+
+    <section id="questions-section" class="card questions-card hidden">
+      <h2>맞춤 질문</h2>
+      <p class="questions-intro">더 정확한 경로를 그리기 위해 몇 가지만 더 여쭤볼게요.</p>
+      <form id="questions-form">
+        <div id="questions-list"></div>
+        <button type="submit" id="questions-submit-btn">6주 경로 만들기</button>
+      </form>
+      <p id="questions-error-msg" class="error hidden"></p>
     </section>
 
     <section id="result" class="card result-card hidden"></section>
