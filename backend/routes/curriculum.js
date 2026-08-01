@@ -15,13 +15,19 @@ const SYSTEM_PROMPT = `당신은 취미 코칭 전문가입니다.
     {
       "week": 1,
       "goal": "이번 주 목표",
-      "tasks": ["할 일 1", "할 일 2", "할 일 3"],
+      "tasks": [
+        { "text": "할 일 1" },
+        { "text": "할 일 2" },
+        { "text": "할 일 3" }
+      ],
       "resources": ["추천 자료/링크 설명 1", "추천 자료/링크 설명 2"]
     }
   ]
 }
 
-weeks 배열은 반드시 6개(1주차~6주차)를 포함해야 합니다.`;
+weeks 배열은 반드시 6개(1주차~6주차)를 포함해야 합니다.
+tasks 배열의 각 항목은 반드시 "text" 키 하나만 가진 객체여야 합니다.
+title, description, name, content 등 "text"가 아닌 다른 키 이름은 절대 사용하지 마세요.`;
 
 // POST /api/curriculum  { interest, hoursPerWeek, budget }
 router.post('/', async (req, res) => {

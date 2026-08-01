@@ -13,6 +13,13 @@ function hideError() {
   errorMsg.classList.add('hidden');
 }
 
+// AI 응답이 문자열이거나, text/title/description 중 다른 키를 쓴 객체일 수 있어서
+// 우선순위대로 값을 꺼내와요.
+function getTaskText(task) {
+  if (typeof task === 'string') return task;
+  return task.text || task.title || task.description || '';
+}
+
 // 전체 할 일 중 완료된 비율을 계산해요.
 function calcProgress(weeks) {
   let total = 0;
@@ -58,7 +65,7 @@ function renderCurriculum(item) {
           <input type="checkbox" data-week="${weekIndex}" data-task="${taskIndex}" ${
           task.done ? 'checked' : ''
         } />
-          <span>${task.text}</span>
+          <span>${getTaskText(task)}</span>
         </label>`
       )
       .join('');
