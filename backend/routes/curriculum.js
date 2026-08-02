@@ -197,28 +197,18 @@ function isResearchTask(text) {
 }
 
 // 리서치형 할 일에 대해 실제 웹 검색으로 관련 자료(유튜브/블로그)를 찾아요.
-// 지어낸 링크를 절대 만들지 않도록, 검색 결과에서 얻은 URL만 쓰라고 명시해요.
-const RESOURCE_SEARCH_SYSTEM_PROMPT = `당신은 학습 자료를 추천하는 리서치 도우미입니다.
-주어진 "할 일"과 관련해 실제로 존재하는 유튜브 영상이나 블로그 글을 웹 검색으로 찾아 2~3개 추천하세요.
-
-반드시 실제 검색 결과에서 확인한 URL만 사용하세요. 검색으로 확인하지 못한 URL은 절대로 만들어내거나 추측하지 마세요.
-관련성 높은 결과가 2~3개보다 적으면, 적은 개수만 추천해도 됩니다.
-
-검색이 끝나면, 검색 결과를 요약하거나 설명하는 글은 절대 쓰지 마세요.
-마크다운 문법(#, *, >, 이모지 등)도 쓰지 마세요.
-오직 아래 JSON 하나만 출력하세요. JSON 앞뒤에 다른 텍스트를 붙이지 마세요.
-
-{
-  "resources": [
-    { "title": "자료 제목", "url": "https://실제-검색으로-찾은-url" }
-  ]
-}`;
+// 검색어를 잘 만들도록만 안내하고, URL 형식은 요구하지 않아요 — URL은 절대
+// AI가 텍스트로 다시 적은 걸 쓰지 않고, 아래에서 web_search_tool_result
+// 블록의 실제 url 필드를 그대로 가져와서 써요 (오타/변형 위험을 원천 차단).
+const RESOURCE_SEARCH_SYSTEM_PROMPT = `당신은 학습 자료를 찾는 리서치 도우미입니다.
+주어진 "할 일"과 관련해 실제로 존재하는 유튜브 영상이나 블로그 글을 찾을 수 있도록,
+구체적이고 관련성 높은 검색어로 웹 검색을 수행하세요.`;
 
 async function searchTaskResources({ interest, taskDescription }) {
   const userMessage = `관심 분야: ${interest}
 할 일: ${taskDescription}
 
-위 할 일과 관련된 실제 유튜브 영상이나 블로그 글을 웹 검색으로 찾아서 2~3개 추천해주세요.`;
+위 할 일과 관련된 실제 유튜브 영상이나 블로그 글을 찾기 위해 웹 검색을 수행해주세요.`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -229,7 +219,7 @@ async function searchTaskResources({ interest, taskDescription }) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
+      max_tokens: 2000,
       system: RESOURCE_SEARCH_SYSTEM_PROMPT,
       tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
       messages: [{ role: 'user', content: userMessage }],
@@ -243,20 +233,43 @@ async function searchTaskResources({ interest, taskDescription }) {
   }
 
   const data = await response.json();
-  // 인용(citation)이 붙으면 최종 답변이 여러 개의 text 블록으로 쪼개져 오기 때문에,
-  // 전부 이어붙인 뒤에 JSON을 추출해야 해요 (마지막 블록만 보면 앞부분을 놓쳐요).
-  const fullText = data.content
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text)
-    .join('');
-  if (!fullText) throw new Error('WEB_SEARCH_NO_TEXT');
 
-  const cleaned = fullText.replace(/```json|```/g, '').trim();
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('WEB_SEARCH_PARSE_FAILED');
+  // web_search_tool_result 블록에 들어있는 실제 검색 결과만 모아요.
+  // AI가 최종 텍스트에 다시 옮겨 적은 URL은 오타/변형 위험이 있어서 절대 쓰지 않아요.
+  const rawResults = [];
+  const seenUrls = new Set();
+  data.content.forEach((block) => {
+    if (block.type === 'web_search_tool_result' && Array.isArray(block.content)) {
+      block.content.forEach((item) => {
+        if (item.type === 'web_search_result' && item.url && !seenUrls.has(item.url)) {
+          seenUrls.add(item.url);
+          rawResults.push({ title: item.title || item.url, url: item.url });
+        }
+      });
+    }
+  });
 
-  const result = JSON.parse(jsonMatch[0]);
-  return Array.isArray(result.resources) ? result.resources : [];
+  if (!rawResults.length) return [];
+
+  // 어떤 결과가 이 할 일과 가장 관련 있는지는 AI에게 "번호"로만 고르게 해요.
+  // URL을 다시 타이핑하게 하지 않으니, 최종 url은 항상 rawResults의 값 그대로예요.
+  try {
+    const listForPrompt = rawResults.map((r, i) => `${i}: ${r.title}`).join('\n');
+    const picked = await callClaudeJSON({
+      systemPrompt:
+        '주어진 목록에서 할 일과 가장 관련 있는 항목의 번호만 골라 JSON으로 응답하세요. 다른 텍스트 없이 {"selected": [0, 2]} 형식으로만 응답하세요.',
+      userMessage: `할 일: ${taskDescription}\n\n검색 결과 목록 (번호: 제목):\n${listForPrompt}\n\n가장 관련 있는 2~3개의 번호를 골라주세요.`,
+      maxTokens: 200,
+    });
+
+    const selected = Array.isArray(picked.selected) ? picked.selected : [];
+    const chosen = selected.map((i) => rawResults[i]).filter(Boolean).slice(0, 3);
+    if (chosen.length) return chosen;
+  } catch (err) {
+    console.error('자료 선별 실패, 검색 결과 상위 항목으로 대체:', err);
+  }
+
+  return rawResults.slice(0, 3);
 }
 
 // 할 일 목록을 정규화하고, 리서치형 할 일에는 실제 검색으로 찾은 자료를 붙여요.
