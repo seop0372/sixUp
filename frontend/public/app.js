@@ -76,39 +76,124 @@ function renderProgressBar(item) {
   `;
 }
 
-function renderCurriculum(item) {
-  resultSection.classList.remove('hidden');
-  resultSection.innerHTML = `<h2>${item.title}</h2>${renderProgressBar(item)}`;
+// 캐러셀이 현재 보여주고 있는 주차(0-based 배열 인덱스)예요.
+let currentWeekIndex = 0;
 
-  item.weeks.forEach((week, weekIndex) => {
-    const block = document.createElement('div');
-    block.className = 'week-block';
-    block.setAttribute('data-week', week.week);
+// 아직 할 일을 다 끝내지 못한 첫 번째 주차를 찾아요. 다 끝냈으면 마지막 주차.
+function firstIncompleteWeekIndex(item) {
+  for (let i = 0; i < item.weeks.length; i++) {
+    const week = item.weeks[i];
+    const allDone = week.tasks.every((_, taskIndex) => isTaskDone(item, i, taskIndex));
+    if (!allDone) return i;
+  }
+  return item.weeks.length - 1;
+}
 
-    const tasksHtml = week.tasks
-      .map((task, taskIndex) => {
-        const done = isTaskDone(item, weekIndex, taskIndex);
-        return `
+// 제안은 item에 직접 들고 다녀요 (주차를 넘겨봐도 유지되도록).
+function addSuggestion(item, weekIndex, direction) {
+  if (!item.pendingSuggestions) item.pendingSuggestions = [];
+  const exists = item.pendingSuggestions.some((s) => s.weekIndex === weekIndex);
+  if (!exists) item.pendingSuggestions.push({ weekIndex, direction });
+}
+
+function removeSuggestion(item, weekIndex) {
+  if (!item.pendingSuggestions) return;
+  item.pendingSuggestions = item.pendingSuggestions.filter((s) => s.weekIndex !== weekIndex);
+}
+
+// 제안 카드는 특정 주차 블록이 아니라, 진행률 바 아래 상시 영역에 떠요 —
+// 캐러셀에서는 매 순간 주차 블록이 하나만 존재해서 다른 주차에 붙일 수 없어요.
+function renderSuggestionsHtml(item) {
+  const list = item.pendingSuggestions || [];
+  return list
+    .map((s) => {
+      const week = item.weeks[s.weekIndex];
+      if (!week) return '';
+      const message =
+        s.direction === 'harder'
+          ? `이번 주 다 완료하셨네요! ${week.week}주차를 조금 더 도전적으로 조정해드릴까요?`
+          : `이번 주가 좀 빠듯했나봐요. ${week.week}주차 계획을 더 가볍게 조정해드릴까요?`;
+      return `
+        <div class="suggest-card">
+          <p>${message}</p>
+          <div class="suggest-actions">
+            <button type="button" class="suggest-accept" data-week-index="${s.weekIndex}" data-direction="${s.direction}">조정하기</button>
+            <button type="button" class="suggest-dismiss" data-week-index="${s.weekIndex}">괜찮아요</button>
+          </div>
+        </div>`;
+    })
+    .join('');
+}
+
+function attachSuggestionListeners(item) {
+  resultSection.querySelectorAll('.suggest-dismiss').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      removeSuggestion(item, Number(btn.dataset.weekIndex));
+      renderCurriculum(item);
+    });
+  });
+
+  resultSection.querySelectorAll('.suggest-accept').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const weekIndex = Number(btn.dataset.weekIndex);
+      const direction = btn.dataset.direction;
+      btn.disabled = true;
+      btn.textContent = '조정하는 중...';
+
+      try {
+        const res = await fetch(`/api/curriculum/${item.id}/adjust-week`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ weekIndex, direction }),
+        });
+        const updated = await res.json();
+        if (!res.ok) {
+          btn.disabled = false;
+          btn.textContent = '조정하기';
+          return;
+        }
+        item.weeks = updated.weeks;
+        item.progress = updated.progress;
+        removeSuggestion(item, weekIndex);
+        renderCurriculum(item);
+      } catch (err) {
+        console.error('주차 재조정 실패', err);
+        btn.disabled = false;
+        btn.textContent = '조정하기';
+      }
+    });
+  });
+}
+
+// 트레일 마커(원형 숫자)/목표/체크리스트/조정 배지는 기존 .week-block 스타일을 그대로 재사용해요.
+function renderWeekCardHtml(item, weekIndex) {
+  const week = item.weeks[weekIndex];
+  const tasksHtml = week.tasks
+    .map((task, taskIndex) => {
+      const done = isTaskDone(item, weekIndex, taskIndex);
+      return `
         <label class="task ${done ? 'done' : ''}">
           <input type="checkbox" data-week="${weekIndex}" data-task="${taskIndex}" ${done ? 'checked' : ''} />
           <span>${getTaskText(task)}</span>
         </label>`;
-      })
-      .join('');
+    })
+    .join('');
 
-    const adaptedBadge = week.adaptedReason
-      ? '<span class="adapted-badge">진행 상황에 맞춰 조정된 계획이에요</span>'
-      : '';
+  const adaptedBadge = week.adaptedReason
+    ? '<span class="adapted-badge">진행 상황에 맞춰 조정된 계획이에요</span>'
+    : '';
 
-    block.innerHTML = `
+  return `
+    <div class="week-block" data-week="${week.week}">
       <h3>${week.week}주차</h3>
       ${adaptedBadge}
       <p class="goal">${week.goal}</p>
       ${tasksHtml}
-    `;
-    resultSection.appendChild(block);
-  });
+    </div>
+  `;
+}
 
+function attachTaskCheckboxListeners(item) {
   resultSection.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
     cb.addEventListener('change', async (e) => {
       const weekIndex = e.target.dataset.week;
@@ -125,8 +210,6 @@ function renderCurriculum(item) {
         progressWrap.outerHTML = renderProgressBar(item);
       }
 
-      const weeksBefore = JSON.stringify(item.weeks);
-
       try {
         const res = await fetch(`/api/curriculum/${item.id}/progress`, {
           method: 'PATCH',
@@ -136,11 +219,10 @@ function renderCurriculum(item) {
         const updated = await res.json();
         if (!res.ok) return;
 
-        item.weeks = updated.weeks;
         item.progress = updated.progress;
 
-        // 적응형 재조정으로 다음/이번 주 할 일이 바뀌었으면 화면을 다시 그려줘요.
-        if (JSON.stringify(item.weeks) !== weeksBefore) {
+        if (updated.suggestAdjustment) {
+          addSuggestion(item, updated.weekIndex, updated.suggestAdjustment);
           renderCurriculum(item);
         }
       } catch (err) {
@@ -148,6 +230,110 @@ function renderCurriculum(item) {
       }
     });
   });
+}
+
+function goToWeek(item, index) {
+  const clamped = Math.max(0, Math.min(item.weeks.length - 1, index));
+  if (clamped === currentWeekIndex) return;
+  currentWeekIndex = clamped;
+  renderCurriculum(item);
+}
+
+// 트랙패드 좌우 스와이프(수평 휠)와 터치스크린 스와이프를 모두 지원해요.
+function attachSwipeListeners(carousel, item) {
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+
+  carousel.addEventListener(
+    'touchstart',
+    (e) => {
+      const t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      tracking = true;
+    },
+    { passive: true }
+  );
+
+  carousel.addEventListener(
+    'touchend',
+    (e) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+        goToWeek(item, currentWeekIndex + (dx < 0 ? 1 : -1));
+      }
+    },
+    { passive: true }
+  );
+
+  let wheelCooldown = false;
+  carousel.addEventListener(
+    'wheel',
+    (e) => {
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || wheelCooldown) return;
+      e.preventDefault();
+      if (Math.abs(e.deltaX) < 30) return;
+      wheelCooldown = true;
+      goToWeek(item, currentWeekIndex + (e.deltaX > 0 ? 1 : -1));
+      setTimeout(() => {
+        wheelCooldown = false;
+      }, 400);
+    },
+    { passive: false }
+  );
+}
+
+function attachCarouselControls(item) {
+  const prevBtn = resultSection.querySelector('.carousel-prev');
+  const nextBtn = resultSection.querySelector('.carousel-next');
+  if (prevBtn) prevBtn.addEventListener('click', () => goToWeek(item, currentWeekIndex - 1));
+  if (nextBtn) nextBtn.addEventListener('click', () => goToWeek(item, currentWeekIndex + 1));
+
+  resultSection.querySelectorAll('.carousel-dot').forEach((dot) => {
+    dot.addEventListener('click', () => goToWeek(item, Number(dot.dataset.goto)));
+  });
+
+  const carousel = resultSection.querySelector('.week-carousel');
+  if (carousel) attachSwipeListeners(carousel, item);
+}
+
+function renderCurriculum(item, options = {}) {
+  resultSection.classList.remove('hidden');
+
+  if (options.resetIndex || currentWeekIndex == null || currentWeekIndex >= item.weeks.length) {
+    currentWeekIndex = firstIncompleteWeekIndex(item);
+  }
+
+  const total = item.weeks.length;
+  const dotsHtml = item.weeks
+    .map(
+      (_, i) =>
+        `<button type="button" class="carousel-dot ${i === currentWeekIndex ? 'active' : ''}" data-goto="${i}" aria-label="${i + 1}주차로 이동"></button>`
+    )
+    .join('');
+
+  resultSection.innerHTML = `
+    <h2>${item.title}</h2>
+    ${renderProgressBar(item)}
+    ${renderSuggestionsHtml(item)}
+    <div class="week-carousel">
+      ${renderWeekCardHtml(item, currentWeekIndex)}
+    </div>
+    <div class="carousel-nav">
+      <button type="button" class="carousel-arrow carousel-prev" ${currentWeekIndex === 0 ? 'disabled' : ''} aria-label="이전 주차">◀</button>
+      <button type="button" class="carousel-arrow carousel-next" ${currentWeekIndex === total - 1 ? 'disabled' : ''} aria-label="다음 주차">▶</button>
+    </div>
+    <div class="carousel-dots">${dotsHtml}</div>
+  `;
+
+  attachTaskCheckboxListeners(item);
+  attachSuggestionListeners(item);
+  attachCarouselControls(item);
 }
 
 function renderQuestions(questions) {
@@ -193,7 +379,7 @@ async function generateCurriculum(answers) {
     }
 
     questionsSection.classList.add('hidden');
-    renderCurriculum(data);
+    renderCurriculum(data, { resetIndex: true });
     loadHistory();
   } catch (err) {
     console.error(err);
@@ -284,7 +470,7 @@ async function loadHistory() {
       el.addEventListener('click', async () => {
         const res = await fetch(`/api/curriculum/${item.id}`);
         const full = await res.json();
-        renderCurriculum(full);
+        renderCurriculum(full, { resetIndex: true });
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
       historyList.appendChild(el);

@@ -62,7 +62,9 @@ function updateProgress(id, weekIndex, taskIndex, done) {
   return record;
 }
 
-// 적응형 재조정: 특정 주차의 할 일 목록을 통째로 교체해요.
+// 적응형 재조정: 특정 주차의 할 일 목록을 교체해요.
+// tasks는 이미 완료한 항목은 원래 자리 그대로 두고, 미완료 항목만 새 내용으로
+// 바꾼 배열이라고 가정해요 — 그래서 progress 맵은 그대로 둬도 계속 맞아요.
 function updateWeekTasks(id, weekIndex, tasks, adaptedReason) {
   const list = readAll();
   const record = list.find((c) => c.id === id);
@@ -73,13 +75,6 @@ function updateWeekTasks(id, weekIndex, tasks, adaptedReason) {
 
   week.tasks = tasks;
   week.adaptedReason = adaptedReason;
-
-  // 할 일 목록이 통째로 바뀌었으니, 이 주차에 남아있던 기존 체크 상태는 지워요.
-  if (record.progress) {
-    Object.keys(record.progress).forEach((key) => {
-      if (key.startsWith(`${weekIndex}-`)) delete record.progress[key];
-    });
-  }
 
   writeAll(list);
   return record;

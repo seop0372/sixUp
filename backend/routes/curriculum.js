@@ -132,29 +132,55 @@ tasks 배열의 각 항목은 반드시 "text" 키 하나만 가진 객체여야
 title, description, name, content 등 "text"가 아닌 다른 키 이름은 절대 사용하지 마세요.
 할 일 개수는 2개에서 4개 사이로 만드세요.`;
 
-async function regenerateWeekTasks({ curriculum, targetWeekIndex, direction }) {
+// 완료한 할 일은 그대로 두고, 아직 완료하지 않은 할 일만 같은 자리에서 새로 만들어요.
+async function regenerateIncompleteTasks({ curriculum, targetWeekIndex, direction }) {
   const targetWeek = curriculum.weeks[targetWeekIndex];
+  const progress = curriculum.progress || {};
+
+  const pendingIndexes = [];
+  const doneTexts = [];
+  const pendingTexts = [];
+
+  targetWeek.tasks.forEach((task, i) => {
+    if (progress[`${targetWeekIndex}-${i}`]) {
+      doneTexts.push(taskText(task));
+    } else {
+      pendingIndexes.push(i);
+      pendingTexts.push(taskText(task));
+    }
+  });
+
+  if (!pendingIndexes.length) {
+    return targetWeek.tasks; // 이미 다 완료했으면 바꿀 게 없어요.
+  }
 
   const directionText =
     direction === 'harder'
-      ? '사용자가 바로 이전 주차의 할 일을 100% 완료했습니다. 계획대로 잘 따라오고 있으니, 이번 주는 강도나 난이도를 한 단계 높여서 더 도전적으로 구성하세요.'
-      : '사용자가 바로 이전 주차의 할 일 중 절반도 완료하지 못한 채 이번 주로 넘어왔습니다. 부담을 줄일 수 있도록 할 일 개수를 줄이거나 난이도를 낮춰서, 더 현실적으로 구성하세요.';
+      ? '사용자가 바로 이전 주차의 할 일을 100% 완료했습니다. 계획대로 잘 따라오고 있으니, 아직 하지 않은 할 일을 강도나 난이도를 한 단계 높여서 더 도전적으로 다시 만드세요.'
+      : '사용자가 이번 주를 다소 버거워하고 있습니다. 아직 하지 않은 할 일의 부담을 줄일 수 있도록 난이도를 낮추거나 더 간단하게 다시 만드세요.';
 
   const userMessage = `관심 분야: ${curriculum.interest}
 주당 가능 시간: ${curriculum.hoursPerWeek}시간
 전체 커리큘럼 제목: ${curriculum.title}
 이번 주차(${targetWeek.week}주차) 목표: ${targetWeek.goal}
-기존 할 일 목록: ${JSON.stringify((targetWeek.tasks || []).map(taskText))}
+이미 완료해서 그대로 유지할 할 일: ${JSON.stringify(doneTexts)}
+아직 완료하지 않아 다시 만들 할 일: ${JSON.stringify(pendingTexts)}
 
 ${directionText}
 
-위 내용을 반영해서 ${targetWeek.week}주차의 할 일(tasks) 목록만 새로 만들어주세요.`;
+"아직 완료하지 않아 다시 만들 할 일" ${pendingTexts.length}개를 정확히 ${pendingTexts.length}개로 새로 만들어주세요.
+이미 완료한 할 일은 절대 다시 포함하거나 언급하지 마세요.`;
 
   const result = await callClaudeJSON({ systemPrompt: REGEN_TASKS_SYSTEM_PROMPT, userMessage, maxTokens: 800 });
   if (!Array.isArray(result.tasks) || !result.tasks.length) {
     throw new Error('REGEN_INVALID_TASKS');
   }
-  return result.tasks;
+
+  const newTasks = [...targetWeek.tasks];
+  pendingIndexes.forEach((taskIdx, i) => {
+    if (result.tasks[i]) newTasks[taskIdx] = result.tasks[i];
+  });
+  return newTasks;
 }
 
 function buildAnswersText(answers) {
@@ -247,6 +273,7 @@ router.get('/:id', (req, res) => {
 });
 
 // PATCH /api/curriculum/:id/progress  { weekIndex, taskIndex, done }
+// 완료율 조건이 감지되면 재조정을 바로 적용하지 않고, 응답에 제안 신호만 실어 보내요.
 router.patch('/:id/progress', async (req, res) => {
   const weekIndex = Number(req.body.weekIndex);
   const taskIndex = Number(req.body.taskIndex);
@@ -257,31 +284,26 @@ router.patch('/:id/progress', async (req, res) => {
 
   const completionBefore = getWeekCompletion(before, weekIndex);
 
-  let updated = storage.updateProgress(req.params.id, weekIndex, taskIndex, done);
+  const updated = storage.updateProgress(req.params.id, weekIndex, taskIndex, done);
   if (!updated) return res.status(404).json({ error: '커리큘럼을 찾을 수 없어요.' });
 
-  if (done && process.env.ANTHROPIC_API_KEY) {
+  let suggestion = null;
+
+  if (done) {
     const completionAfter = getWeekCompletion(updated, weekIndex);
     const nextIndex = weekIndex + 1;
     const prevIndex = weekIndex - 1;
 
-    // 이번 주차를 방금 100% 완료했으면, 다음 주는 더 도전적으로 재조정해요.
+    // 이번 주차를 방금 100% 완료했으면, 다음 주를 더 도전적으로 조정하자고 제안해요.
     if (
       completionBefore < 1 &&
       completionAfter === 1 &&
       updated.weeks[nextIndex] &&
       !updated.weeks[nextIndex].adaptedReason
     ) {
-      try {
-        const tasks = await regenerateWeekTasks({ curriculum: updated, targetWeekIndex: nextIndex, direction: 'harder' });
-        updated = storage.updateWeekTasks(req.params.id, nextIndex, tasks, 'harder') || updated;
-      } catch (err) {
-        console.error('다음 주 재조정(harder) 실패:', err);
-      }
-    }
-
-    // 이전 주차를 절반도 못 채운 채 이번 주를 막 시작했으면, 이번 주를 더 쉽게 재조정해요.
-    if (
+      suggestion = { suggestAdjustment: 'harder', weekIndex: nextIndex };
+    } else if (
+      // 이전 주차를 절반도 못 채운 채 이번 주를 막 시작했으면, 이번 주를 더 쉽게 조정하자고 제안해요.
       completionBefore === 0 &&
       prevIndex >= 0 &&
       updated.weeks[prevIndex] &&
@@ -289,16 +311,41 @@ router.patch('/:id/progress', async (req, res) => {
       updated.weeks[weekIndex] &&
       !updated.weeks[weekIndex].adaptedReason
     ) {
-      try {
-        const tasks = await regenerateWeekTasks({ curriculum: updated, targetWeekIndex: weekIndex, direction: 'easier' });
-        updated = storage.updateWeekTasks(req.params.id, weekIndex, tasks, 'easier') || updated;
-      } catch (err) {
-        console.error('이번 주 재조정(easier) 실패:', err);
-      }
+      suggestion = { suggestAdjustment: 'easier', weekIndex };
     }
   }
 
-  res.json(updated);
+  res.json(suggestion ? { ...updated, ...suggestion } : updated);
+});
+
+// POST /api/curriculum/:id/adjust-week  { weekIndex, direction: 'harder' | 'easier' }
+// 사용자가 제안 카드에서 "조정하기"를 눌렀을 때만 실제로 재생성해요.
+router.post('/:id/adjust-week', async (req, res) => {
+  const weekIndex = Number(req.body.weekIndex);
+  const direction = req.body.direction === 'easier' ? 'easier' : 'harder';
+
+  const curriculum = storage.getCurriculumById(req.params.id);
+  if (!curriculum) return res.status(404).json({ error: '커리큘럼을 찾을 수 없어요.' });
+
+  if (!Number.isInteger(weekIndex) || !curriculum.weeks[weekIndex]) {
+    return res.status(400).json({ error: '해당 주차를 찾을 수 없어요.' });
+  }
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({
+      error: 'ANTHROPIC_API_KEY가 설정되지 않았어요. backend/.env 파일에 키를 넣어주세요.',
+    });
+  }
+
+  try {
+    const tasks = await regenerateIncompleteTasks({ curriculum, targetWeekIndex: weekIndex, direction });
+    const updated = storage.updateWeekTasks(req.params.id, weekIndex, tasks, direction);
+    if (!updated) return res.status(404).json({ error: '커리큘럼을 찾을 수 없어요.' });
+    res.json(updated);
+  } catch (err) {
+    console.error('주차 재조정 실패:', err);
+    res.status(502).json({ error: '주차를 재조정하는 중 오류가 발생했어요.' });
+  }
 });
 
 module.exports = router;
