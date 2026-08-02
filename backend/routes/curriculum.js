@@ -175,12 +175,108 @@ ${directionText}
   if (!Array.isArray(result.tasks) || !result.tasks.length) {
     throw new Error('REGEN_INVALID_TASKS');
   }
+  const finalized = await finalizeTasks(result.tasks, curriculum.interest);
 
   const newTasks = [...targetWeek.tasks];
   pendingIndexes.forEach((taskIdx, i) => {
-    if (result.tasks[i]) newTasks[taskIdx] = result.tasks[i];
+    if (finalized[i]) newTasks[taskIdx] = finalized[i];
   });
   return newTasks;
+}
+
+// task를 항상 { text, notes, ... } 객체 형태로 맞춰줘요 (레거시 문자열 데이터 포함).
+function normalizeTask(task) {
+  if (typeof task === 'string') return { text: task, notes: '' };
+  return { notes: '', ...task };
+}
+
+// "공부하기/검색하기/찾아보기/알아보기"가 들어간 할 일은 리서치형으로 판단해요.
+const RESEARCH_KEYWORDS = ['공부하기', '검색하기', '찾아보기', '알아보기'];
+function isResearchTask(text) {
+  return RESEARCH_KEYWORDS.some((kw) => text.includes(kw));
+}
+
+// 리서치형 할 일에 대해 실제 웹 검색으로 관련 자료(유튜브/블로그)를 찾아요.
+// 지어낸 링크를 절대 만들지 않도록, 검색 결과에서 얻은 URL만 쓰라고 명시해요.
+const RESOURCE_SEARCH_SYSTEM_PROMPT = `당신은 학습 자료를 추천하는 리서치 도우미입니다.
+주어진 "할 일"과 관련해 실제로 존재하는 유튜브 영상이나 블로그 글을 웹 검색으로 찾아 2~3개 추천하세요.
+
+반드시 실제 검색 결과에서 확인한 URL만 사용하세요. 검색으로 확인하지 못한 URL은 절대로 만들어내거나 추측하지 마세요.
+관련성 높은 결과가 2~3개보다 적으면, 적은 개수만 추천해도 됩니다.
+
+검색이 끝나면, 검색 결과를 요약하거나 설명하는 글은 절대 쓰지 마세요.
+마크다운 문법(#, *, >, 이모지 등)도 쓰지 마세요.
+오직 아래 JSON 하나만 출력하세요. JSON 앞뒤에 다른 텍스트를 붙이지 마세요.
+
+{
+  "resources": [
+    { "title": "자료 제목", "url": "https://실제-검색으로-찾은-url" }
+  ]
+}`;
+
+async function searchTaskResources({ interest, taskDescription }) {
+  const userMessage = `관심 분야: ${interest}
+할 일: ${taskDescription}
+
+위 할 일과 관련된 실제 유튜브 영상이나 블로그 글을 웹 검색으로 찾아서 2~3개 추천해주세요.`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4000,
+      system: RESOURCE_SEARCH_SYSTEM_PROMPT,
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
+      messages: [{ role: 'user', content: userMessage }],
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('웹 검색 API 오류:', errText);
+    throw new Error('WEB_SEARCH_FAILED');
+  }
+
+  const data = await response.json();
+  // 인용(citation)이 붙으면 최종 답변이 여러 개의 text 블록으로 쪼개져 오기 때문에,
+  // 전부 이어붙인 뒤에 JSON을 추출해야 해요 (마지막 블록만 보면 앞부분을 놓쳐요).
+  const fullText = data.content
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text)
+    .join('');
+  if (!fullText) throw new Error('WEB_SEARCH_NO_TEXT');
+
+  const cleaned = fullText.replace(/```json|```/g, '').trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('WEB_SEARCH_PARSE_FAILED');
+
+  const result = JSON.parse(jsonMatch[0]);
+  return Array.isArray(result.resources) ? result.resources : [];
+}
+
+// 할 일 목록을 정규화하고, 리서치형 할 일에는 실제 검색으로 찾은 자료를 붙여요.
+async function finalizeTasks(tasks, interest) {
+  const normalized = tasks.map(normalizeTask);
+
+  if (process.env.ANTHROPIC_API_KEY) {
+    await Promise.all(
+      normalized.map(async (task) => {
+        if (!isResearchTask(task.text)) return;
+        try {
+          task.resources = await searchTaskResources({ interest, taskDescription: task.text });
+        } catch (err) {
+          console.error('자료 검색 실패:', task.text, err);
+        }
+      })
+    );
+  }
+
+  return normalized;
 }
 
 function buildAnswersText(answers) {
@@ -244,6 +340,12 @@ router.post('/', async (req, res) => {
 
   try {
     const curriculum = await callClaudeJSON({ systemPrompt: SYSTEM_PROMPT, userMessage, maxTokens: 4000 });
+
+    await Promise.all(
+      curriculum.weeks.map(async (week) => {
+        week.tasks = await finalizeTasks(week.tasks, interest);
+      })
+    );
 
     const saved = storage.saveCurriculum({
       interest,
@@ -346,6 +448,17 @@ router.post('/:id/adjust-week', async (req, res) => {
     console.error('주차 재조정 실패:', err);
     res.status(502).json({ error: '주차를 재조정하는 중 오류가 발생했어요.' });
   }
+});
+
+// PATCH /api/curriculum/:id/notes  { weekIndex, taskIndex, notes }
+router.patch('/:id/notes', (req, res) => {
+  const weekIndex = Number(req.body.weekIndex);
+  const taskIndex = Number(req.body.taskIndex);
+  const notes = typeof req.body.notes === 'string' ? req.body.notes : '';
+
+  const updated = storage.updateTaskNotes(req.params.id, weekIndex, taskIndex, notes);
+  if (!updated) return res.status(404).json({ error: '커리큘럼 또는 할 일을 찾을 수 없어요.' });
+  res.json(updated);
 });
 
 module.exports = router;

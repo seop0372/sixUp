@@ -364,6 +364,104 @@ button:hover:not(:disabled) {
   color: #A79E8A;
 }
 
+/* ---------- 할 일 메모 ---------- */
+.task-item {
+  padding-bottom: 4px;
+}
+
+.task-item .task {
+  padding-bottom: 2px;
+}
+
+.task-notes {
+  margin-left: 27px;
+}
+
+.notes-toggle {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.notes-toggle:hover {
+  color: var(--amber-deep);
+}
+
+.notes-editor {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.notes-editor.hidden {
+  display: none;
+}
+
+.notes-textarea {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--amber);
+  background: var(--paper);
+  color: var(--ink);
+  resize: vertical;
+  min-height: 50px;
+}
+
+.notes-textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(217, 142, 63, 0.15);
+}
+
+.notes-save {
+  align-self: flex-start;
+  margin-top: 0;
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+/* ---------- 추천 자료 카드 ---------- */
+.task-resources {
+  margin-left: 27px;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-resources-label {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--amber-deep);
+}
+
+.resource-card {
+  display: block;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.resource-card:hover {
+  border-color: var(--amber);
+  color: var(--amber-deep);
+}
+
 /* ---------- 캐러셀: 한 번에 한 주차씩 ---------- */
 .week-carousel {
   touch-action: pan-y;

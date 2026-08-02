@@ -35,6 +35,13 @@ function escapeAttr(str) {
   return String(str).replace(/"/g, '&quot;');
 }
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 // AI 응답이 문자열이거나, text/title/description 중 다른 키를 쓴 객체일 수 있어서
 // 우선순위대로 값을 꺼내와요.
 function getTaskText(task) {
@@ -165,6 +172,40 @@ function attachSuggestionListeners(item) {
   });
 }
 
+// 링크 카드 형태로 보여줄 추천 자료 섹션이에요 (리서치형 할 일에만 붙어요).
+function renderTaskResourcesHtml(task) {
+  const resources = Array.isArray(task.resources) ? task.resources : [];
+  if (!resources.length) return '';
+
+  const cardsHtml = resources
+    .map(
+      (r) => `
+      <a class="resource-card" href="${escapeAttr(r.url)}" target="_blank" rel="noopener noreferrer">
+        ${escapeHtml(r.title || r.url)}
+      </a>`
+    )
+    .join('');
+
+  return `
+    <div class="task-resources">
+      <p class="task-resources-label">추천 자료</p>
+      ${cardsHtml}
+    </div>`;
+}
+
+// 메모 토글 링크 + 펼쳐지는 입력창이에요. 레시피 링크 같은 자유 텍스트를 저장할 수 있어요.
+function renderTaskNotesHtml(weekIndex, taskIndex, task) {
+  const notes = typeof task === 'object' && task.notes ? task.notes : '';
+  return `
+    <div class="task-notes" data-week="${weekIndex}" data-task="${taskIndex}">
+      <button type="button" class="notes-toggle">${notes ? '📝 메모 보기' : '+ 메모 추가'}</button>
+      <div class="notes-editor hidden">
+        <textarea class="notes-textarea" placeholder="자유롭게 메모나 링크를 남겨보세요">${escapeHtml(notes)}</textarea>
+        <button type="button" class="notes-save">저장</button>
+      </div>
+    </div>`;
+}
+
 // 트레일 마커(원형 숫자)/목표/체크리스트/조정 배지는 기존 .week-block 스타일을 그대로 재사용해요.
 function renderWeekCardHtml(item, weekIndex) {
   const week = item.weeks[weekIndex];
@@ -172,10 +213,14 @@ function renderWeekCardHtml(item, weekIndex) {
     .map((task, taskIndex) => {
       const done = isTaskDone(item, weekIndex, taskIndex);
       return `
-        <label class="task ${done ? 'done' : ''}">
-          <input type="checkbox" data-week="${weekIndex}" data-task="${taskIndex}" ${done ? 'checked' : ''} />
-          <span>${getTaskText(task)}</span>
-        </label>`;
+        <div class="task-item">
+          <label class="task ${done ? 'done' : ''}">
+            <input type="checkbox" data-week="${weekIndex}" data-task="${taskIndex}" ${done ? 'checked' : ''} />
+            <span>${getTaskText(task)}</span>
+          </label>
+          ${renderTaskNotesHtml(weekIndex, taskIndex, task)}
+          ${renderTaskResourcesHtml(typeof task === 'object' ? task : {})}
+        </div>`;
     })
     .join('');
 
@@ -191,6 +236,47 @@ function renderWeekCardHtml(item, weekIndex) {
       ${tasksHtml}
     </div>
   `;
+}
+
+function attachTaskNotesListeners(item) {
+  resultSection.querySelectorAll('.notes-toggle').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const editor = btn.nextElementSibling;
+      editor.classList.toggle('hidden');
+      if (!editor.classList.contains('hidden')) {
+        editor.querySelector('.notes-textarea').focus();
+      }
+    });
+  });
+
+  resultSection.querySelectorAll('.notes-save').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const wrap = btn.closest('.task-notes');
+      const weekIndex = wrap.dataset.week;
+      const taskIndex = wrap.dataset.task;
+      const textarea = wrap.querySelector('.notes-textarea');
+      const notes = textarea.value;
+
+      btn.disabled = true;
+      btn.textContent = '저장 중...';
+
+      try {
+        const res = await fetch(`/api/curriculum/${item.id}/notes`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ weekIndex, taskIndex, notes }),
+        });
+        if (res.ok) {
+          wrap.querySelector('.notes-toggle').textContent = notes ? '📝 메모 보기' : '+ 메모 추가';
+        }
+      } catch (err) {
+        console.error('메모 저장 실패', err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '저장';
+      }
+    });
+  });
 }
 
 function attachTaskCheckboxListeners(item) {
@@ -332,6 +418,7 @@ function renderCurriculum(item, options = {}) {
   `;
 
   attachTaskCheckboxListeners(item);
+  attachTaskNotesListeners(item);
   attachSuggestionListeners(item);
   attachCarouselControls(item);
 }

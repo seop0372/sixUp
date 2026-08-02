@@ -80,10 +80,31 @@ function updateWeekTasks(id, weekIndex, tasks, adaptedReason) {
   return record;
 }
 
+// 특정 할 일의 메모를 저장해요. 레거시 문자열 task는 객체로 승격시켜요.
+function updateTaskNotes(id, weekIndex, taskIndex, notes) {
+  const list = readAll();
+  const record = list.find((c) => c.id === id);
+  if (!record) return null;
+
+  const week = record.weeks && record.weeks[weekIndex];
+  const task = week && week.tasks && week.tasks[taskIndex];
+  if (!task) return null;
+
+  if (typeof task === 'string') {
+    week.tasks[taskIndex] = { text: task, notes };
+  } else {
+    task.notes = notes;
+  }
+
+  writeAll(list);
+  return record;
+}
+
 module.exports = {
   saveCurriculum,
   getAllCurricula,
   getCurriculumById,
   updateProgress,
   updateWeekTasks,
+  updateTaskNotes,
 };
