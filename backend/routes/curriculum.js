@@ -94,6 +94,69 @@ async function callClaudeJSON({ systemPrompt, userMessage, maxTokens }) {
   }
 }
 
+// AI 응답이 문자열이거나 text/title/description 중 다른 키를 쓴 객체일 수 있어서
+// 우선순위대로 값을 꺼내와요. (frontend의 getTaskText와 동일한 로직)
+function taskText(task) {
+  if (typeof task === 'string') return task;
+  if (task && typeof task === 'object') return task.text || task.title || task.description || '';
+  return '';
+}
+
+// 특정 주차의 할 일 완료 비율(0~1)을 progress 맵으로 계산해요.
+function getWeekCompletion(record, weekIndex) {
+  const week = record.weeks && record.weeks[weekIndex];
+  if (!week || !Array.isArray(week.tasks) || !week.tasks.length) return 0;
+  const progress = record.progress || {};
+  const doneCount = week.tasks.reduce(
+    (acc, _, taskIndex) => acc + (progress[`${weekIndex}-${taskIndex}`] ? 1 : 0),
+    0
+  );
+  return doneCount / week.tasks.length;
+}
+
+// 적응형 재조정: 진행 상황에 맞춰 특정 주차의 tasks만 다시 만들어요.
+const REGEN_TASKS_SYSTEM_PROMPT = `당신은 취미 코칭 전문가입니다.
+사용자가 진행 중인 6주 커리큘럼의 특정 주차 "할 일(tasks)" 목록을 진행 상황에 맞게 다시 만드세요.
+
+반드시 아래 JSON 형식으로만 응답하세요. 설명, 코드블록 표시(백틱) 없이 순수 JSON 텍스트만 출력하세요.
+
+{
+  "tasks": [
+    { "text": "할 일 1" },
+    { "text": "할 일 2" },
+    { "text": "할 일 3" }
+  ]
+}
+
+tasks 배열의 각 항목은 반드시 "text" 키 하나만 가진 객체여야 합니다.
+title, description, name, content 등 "text"가 아닌 다른 키 이름은 절대 사용하지 마세요.
+할 일 개수는 2개에서 4개 사이로 만드세요.`;
+
+async function regenerateWeekTasks({ curriculum, targetWeekIndex, direction }) {
+  const targetWeek = curriculum.weeks[targetWeekIndex];
+
+  const directionText =
+    direction === 'harder'
+      ? '사용자가 바로 이전 주차의 할 일을 100% 완료했습니다. 계획대로 잘 따라오고 있으니, 이번 주는 강도나 난이도를 한 단계 높여서 더 도전적으로 구성하세요.'
+      : '사용자가 바로 이전 주차의 할 일 중 절반도 완료하지 못한 채 이번 주로 넘어왔습니다. 부담을 줄일 수 있도록 할 일 개수를 줄이거나 난이도를 낮춰서, 더 현실적으로 구성하세요.';
+
+  const userMessage = `관심 분야: ${curriculum.interest}
+주당 가능 시간: ${curriculum.hoursPerWeek}시간
+전체 커리큘럼 제목: ${curriculum.title}
+이번 주차(${targetWeek.week}주차) 목표: ${targetWeek.goal}
+기존 할 일 목록: ${JSON.stringify((targetWeek.tasks || []).map(taskText))}
+
+${directionText}
+
+위 내용을 반영해서 ${targetWeek.week}주차의 할 일(tasks) 목록만 새로 만들어주세요.`;
+
+  const result = await callClaudeJSON({ systemPrompt: REGEN_TASKS_SYSTEM_PROMPT, userMessage, maxTokens: 800 });
+  if (!Array.isArray(result.tasks) || !result.tasks.length) {
+    throw new Error('REGEN_INVALID_TASKS');
+  }
+  return result.tasks;
+}
+
 function buildAnswersText(answers) {
   if (!Array.isArray(answers) || !answers.length) return '';
   const lines = answers
@@ -184,10 +247,57 @@ router.get('/:id', (req, res) => {
 });
 
 // PATCH /api/curriculum/:id/progress  { weekIndex, taskIndex, done }
-router.patch('/:id/progress', (req, res) => {
-  const { weekIndex, taskIndex, done } = req.body;
-  const updated = storage.updateProgress(req.params.id, weekIndex, taskIndex, done);
+router.patch('/:id/progress', async (req, res) => {
+  const weekIndex = Number(req.body.weekIndex);
+  const taskIndex = Number(req.body.taskIndex);
+  const { done } = req.body;
+
+  const before = storage.getCurriculumById(req.params.id);
+  if (!before) return res.status(404).json({ error: '커리큘럼을 찾을 수 없어요.' });
+
+  const completionBefore = getWeekCompletion(before, weekIndex);
+
+  let updated = storage.updateProgress(req.params.id, weekIndex, taskIndex, done);
   if (!updated) return res.status(404).json({ error: '커리큘럼을 찾을 수 없어요.' });
+
+  if (done && process.env.ANTHROPIC_API_KEY) {
+    const completionAfter = getWeekCompletion(updated, weekIndex);
+    const nextIndex = weekIndex + 1;
+    const prevIndex = weekIndex - 1;
+
+    // 이번 주차를 방금 100% 완료했으면, 다음 주는 더 도전적으로 재조정해요.
+    if (
+      completionBefore < 1 &&
+      completionAfter === 1 &&
+      updated.weeks[nextIndex] &&
+      !updated.weeks[nextIndex].adaptedReason
+    ) {
+      try {
+        const tasks = await regenerateWeekTasks({ curriculum: updated, targetWeekIndex: nextIndex, direction: 'harder' });
+        updated = storage.updateWeekTasks(req.params.id, nextIndex, tasks, 'harder') || updated;
+      } catch (err) {
+        console.error('다음 주 재조정(harder) 실패:', err);
+      }
+    }
+
+    // 이전 주차를 절반도 못 채운 채 이번 주를 막 시작했으면, 이번 주를 더 쉽게 재조정해요.
+    if (
+      completionBefore === 0 &&
+      prevIndex >= 0 &&
+      updated.weeks[prevIndex] &&
+      getWeekCompletion(updated, prevIndex) < 0.5 &&
+      updated.weeks[weekIndex] &&
+      !updated.weeks[weekIndex].adaptedReason
+    ) {
+      try {
+        const tasks = await regenerateWeekTasks({ curriculum: updated, targetWeekIndex: weekIndex, direction: 'easier' });
+        updated = storage.updateWeekTasks(req.params.id, weekIndex, tasks, 'easier') || updated;
+      } catch (err) {
+        console.error('이번 주 재조정(easier) 실패:', err);
+      }
+    }
+  }
+
   res.json(updated);
 });
 

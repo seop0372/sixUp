@@ -62,9 +62,33 @@ function updateProgress(id, weekIndex, taskIndex, done) {
   return record;
 }
 
+// 적응형 재조정: 특정 주차의 할 일 목록을 통째로 교체해요.
+function updateWeekTasks(id, weekIndex, tasks, adaptedReason) {
+  const list = readAll();
+  const record = list.find((c) => c.id === id);
+  if (!record) return null;
+
+  const week = record.weeks && record.weeks[weekIndex];
+  if (!week) return null;
+
+  week.tasks = tasks;
+  week.adaptedReason = adaptedReason;
+
+  // 할 일 목록이 통째로 바뀌었으니, 이 주차에 남아있던 기존 체크 상태는 지워요.
+  if (record.progress) {
+    Object.keys(record.progress).forEach((key) => {
+      if (key.startsWith(`${weekIndex}-`)) delete record.progress[key];
+    });
+  }
+
+  writeAll(list);
+  return record;
+}
+
 module.exports = {
   saveCurriculum,
   getAllCurricula,
   getCurriculumById,
   updateProgress,
+  updateWeekTasks,
 };

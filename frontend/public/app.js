@@ -42,22 +42,27 @@ function getTaskText(task) {
   return task.text || task.title || task.description || '';
 }
 
+// item.progress는 "weekIndex-taskIndex" -> boolean 맵이에요. 이걸 기준으로
 // 전체 할 일 중 완료된 비율을 계산해요.
-function calcProgress(weeks) {
+function isTaskDone(item, weekIndex, taskIndex) {
+  return !!(item.progress && item.progress[`${weekIndex}-${taskIndex}`]);
+}
+
+function calcProgress(item) {
   let total = 0;
   let done = 0;
-  weeks.forEach((week) => {
-    week.tasks.forEach((task) => {
+  item.weeks.forEach((week, weekIndex) => {
+    week.tasks.forEach((task, taskIndex) => {
       total += 1;
-      if (task.done) done += 1;
+      if (isTaskDone(item, weekIndex, taskIndex)) done += 1;
     });
   });
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);
   return { total, done, percent };
 }
 
-function renderProgressBar(weeks) {
-  const { done, total, percent } = calcProgress(weeks);
+function renderProgressBar(item) {
+  const { done, total, percent } = calcProgress(item);
   return `
     <div class="progress-wrap">
       <div class="progress-label">
@@ -73,7 +78,7 @@ function renderProgressBar(weeks) {
 
 function renderCurriculum(item) {
   resultSection.classList.remove('hidden');
-  resultSection.innerHTML = `<h2>${item.title}</h2>${renderProgressBar(item.weeks)}`;
+  resultSection.innerHTML = `<h2>${item.title}</h2>${renderProgressBar(item)}`;
 
   item.weeks.forEach((week, weekIndex) => {
     const block = document.createElement('div');
@@ -81,19 +86,23 @@ function renderCurriculum(item) {
     block.setAttribute('data-week', week.week);
 
     const tasksHtml = week.tasks
-      .map(
-        (task, taskIndex) => `
-        <label class="task ${task.done ? 'done' : ''}">
-          <input type="checkbox" data-week="${weekIndex}" data-task="${taskIndex}" ${
-          task.done ? 'checked' : ''
-        } />
+      .map((task, taskIndex) => {
+        const done = isTaskDone(item, weekIndex, taskIndex);
+        return `
+        <label class="task ${done ? 'done' : ''}">
+          <input type="checkbox" data-week="${weekIndex}" data-task="${taskIndex}" ${done ? 'checked' : ''} />
           <span>${getTaskText(task)}</span>
-        </label>`
-      )
+        </label>`;
+      })
       .join('');
+
+    const adaptedBadge = week.adaptedReason
+      ? '<span class="adapted-badge">진행 상황에 맞춰 조정된 계획이에요</span>'
+      : '';
 
     block.innerHTML = `
       <h3>${week.week}주차</h3>
+      ${adaptedBadge}
       <p class="goal">${week.goal}</p>
       ${tasksHtml}
     `;
@@ -109,18 +118,31 @@ function renderCurriculum(item) {
       e.target.closest('.task').classList.toggle('done', done);
 
       // 로컬 데이터도 갱신해서 진행률 바가 즉시 반영되게 해요.
-      item.weeks[weekIndex].tasks[taskIndex].done = done;
+      if (!item.progress) item.progress = {};
+      item.progress[`${weekIndex}-${taskIndex}`] = done;
       const progressWrap = resultSection.querySelector('.progress-wrap');
       if (progressWrap) {
-        progressWrap.outerHTML = renderProgressBar(item.weeks);
+        progressWrap.outerHTML = renderProgressBar(item);
       }
 
+      const weeksBefore = JSON.stringify(item.weeks);
+
       try {
-        await fetch(`/api/curriculum/${item.id}/progress`, {
+        const res = await fetch(`/api/curriculum/${item.id}/progress`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ weekIndex, taskIndex, done }),
         });
+        const updated = await res.json();
+        if (!res.ok) return;
+
+        item.weeks = updated.weeks;
+        item.progress = updated.progress;
+
+        // 적응형 재조정으로 다음/이번 주 할 일이 바뀌었으면 화면을 다시 그려줘요.
+        if (JSON.stringify(item.weeks) !== weeksBefore) {
+          renderCurriculum(item);
+        }
       } catch (err) {
         console.error('진도 저장 실패', err);
       }
