@@ -22,11 +22,11 @@
 
 body {
   margin: 0;
+  min-height: 100vh;
   font-family: 'Inter', -apple-system, sans-serif;
-  background: var(--paper);
-  background-image:
-    radial-gradient(circle at 1px 1px, rgba(36,54,58,0.04) 1px, transparent 0);
-  background-size: 24px 24px;
+  background:
+    linear-gradient(180deg, rgba(246, 236, 220, 0.82) 0%, rgba(246, 236, 220, 0.9) 100%),
+    url('images/hero-frontier.jpg') center top / cover no-repeat fixed;
   color: var(--ink);
   line-height: 1.5;
 }
