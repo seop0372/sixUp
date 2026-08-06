@@ -7,50 +7,60 @@
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="hero">
-    <span class="eyebrow">Trailhead · 취미 시작점</span>
-    <h1>Six<span class="accent">Up</span></h1>
-    <p>어디서부터 시작할지 모르겠다면, 관심사 하나만 알려주세요. AI가 6주짜리 경로를 그려드려요.</p>
-  </header>
+  <section id="splash" class="splash">
+    <div class="splash-scrim"></div>
+    <div class="splash-content">
+      <span class="eyebrow">Frontier · 취미 탐사</span>
+      <h1>Six<span class="accent">Up</span></h1>
+      <p>어디서부터 시작할지 모르겠다면, 관심사 하나만 알려주세요. AI가 6주짜리 항로를 그려드려요.</p>
+      <button type="button" id="start-btn">탐사 시작하기</button>
+    </div>
+  </section>
 
-  <main>
-    <section class="card form-card">
-      <h2>새 경로 그리기</h2>
-      <form id="curriculum-form">
-        <label>
-          관심 분야
-          <input type="text" id="interest" placeholder="예: 캘리그라피, 클라이밍, 우쿨렐레" required />
-        </label>
-        <label>
-          주당 가능 시간 (시간)
-          <input type="number" id="hoursPerWeek" min="1" max="40" placeholder="예: 5" required />
-        </label>
-        <label>
-          예산 (선택)
-          <input type="text" id="budget" placeholder="예: 10만원 이내, 상관없음" />
-        </label>
-        <button type="submit" id="submit-btn">다음: 맞춤 질문 받기</button>
-      </form>
-      <p id="error-msg" class="error hidden"></p>
-    </section>
+  <div id="app" class="app hidden">
+    <header class="hero">
+      <h1>Six<span class="accent">Up</span></h1>
+    </header>
 
-    <section id="questions-section" class="card questions-card hidden">
-      <h2>맞춤 질문</h2>
-      <p class="questions-intro">더 정확한 경로를 그리기 위해 몇 가지만 더 여쭤볼게요.</p>
-      <form id="questions-form">
-        <div id="questions-list"></div>
-        <button type="submit" id="questions-submit-btn">6주 경로 만들기</button>
-      </form>
-      <p id="questions-error-msg" class="error hidden"></p>
-    </section>
+    <main>
+      <section class="card form-card">
+        <h2>새 항로 그리기</h2>
+        <form id="curriculum-form">
+          <label>
+            관심 분야
+            <input type="text" id="interest" placeholder="예: 캘리그라피, 클라이밍, 우쿨렐레" required />
+          </label>
+          <label>
+            주당 가능 시간 (시간)
+            <input type="number" id="hoursPerWeek" min="1" max="40" placeholder="예: 5" required />
+          </label>
+          <label>
+            예산 (선택)
+            <input type="text" id="budget" placeholder="예: 10만원 이내, 상관없음" />
+          </label>
+          <button type="submit" id="submit-btn">다음: 맞춤 질문 받기</button>
+        </form>
+        <p id="error-msg" class="error hidden"></p>
+      </section>
 
-    <section id="result" class="card result-card hidden"></section>
+      <section id="questions-section" class="card questions-card hidden">
+        <h2>맞춤 질문</h2>
+        <p class="questions-intro">더 정확한 항로를 그리기 위해 몇 가지만 더 여쭤볼게요.</p>
+        <form id="questions-form">
+          <div id="questions-list"></div>
+          <button type="submit" id="questions-submit-btn">6주 항로 만들기</button>
+        </form>
+        <p id="questions-error-msg" class="error hidden"></p>
+      </section>
 
-    <section class="card history-card">
-      <h2>지난 경로</h2>
-      <div id="history-list"></div>
-    </section>
-  </main>
+      <section id="result" class="card result-card hidden"></section>
+
+      <section class="card history-card">
+        <h2>지난 항로</h2>
+        <div id="history-list"></div>
+      </section>
+    </main>
+  </div>
 
   <script src="app.js"></script>
 </body>

@@ -1,8 +1,17 @@
+const splash = document.getElementById('splash');
+const app = document.getElementById('app');
+const startBtn = document.getElementById('start-btn');
+
 const form = document.getElementById('curriculum-form');
 const errorMsg = document.getElementById('error-msg');
 const resultSection = document.getElementById('result');
 const historyList = document.getElementById('history-list');
 const submitBtn = document.getElementById('submit-btn');
+
+startBtn.addEventListener('click', () => {
+  splash.classList.add('hidden');
+  app.classList.remove('hidden');
+});
 
 const questionsSection = document.getElementById('questions-section');
 const questionsForm = document.getElementById('questions-form');
@@ -209,7 +218,7 @@ function renderTaskNotesHtml(weekIndex, taskIndex, task) {
     </div>`;
 }
 
-// 트레일 마커(원형 숫자)/목표/체크리스트/조정 배지는 기존 .week-block 스타일을 그대로 재사용해요.
+// 미션 마커(원형 숫자)/목표/체크리스트/조정 배지는 기존 .week-block 스타일을 그대로 재사용해요.
 function renderWeekCardHtml(item, weekIndex) {
   const week = item.weeks[weekIndex];
   const tasksHtml = week.tasks
@@ -477,7 +486,7 @@ async function generateCurriculum(answers) {
     showQuestionsError('서버에 연결할 수 없어요. 백엔드가 실행 중인지 확인해주세요.');
   } finally {
     questionsSubmitBtn.disabled = false;
-    questionsSubmitBtn.textContent = '6주 경로 만들기';
+    questionsSubmitBtn.textContent = '6주 항로 만들기';
   }
 }
 
@@ -557,7 +566,7 @@ async function loadHistory() {
           <span>${item.title || item.interest} — ${new Date(item.createdAt).toLocaleString('ko-KR')}</span>
           <span class="history-item-actions">
             <span class="history-percent">${percent}%</span>
-            <button type="button" class="history-delete" aria-label="이 경로 삭제">✕</button>
+            <button type="button" class="history-delete" aria-label="이 항로 삭제">✕</button>
           </span>
         </div>
       `;
@@ -570,7 +579,7 @@ async function loadHistory() {
 
       el.querySelector('.history-delete').addEventListener('click', async (e) => {
         e.stopPropagation();
-        const ok = window.confirm('이 경로를 삭제할까요? 되돌릴 수 없어요.');
+        const ok = window.confirm('이 항로를 삭제할까요? 되돌릴 수 없어요.');
         if (!ok) return;
 
         try {
