@@ -552,6 +552,31 @@ button:hover:not(:disabled) {
   border-radius: 999px;
 }
 
+.history-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.history-delete {
+  margin: 0;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.history-delete:hover {
+  border-color: #B23A3A;
+  color: #B23A3A;
+  background: rgba(178, 58, 58, 0.08);
+}
+
 .muted {
   color: #A79E8A;
   font-size: 14px;

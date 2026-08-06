@@ -13,6 +13,9 @@ const questionsErrorMsg = document.getElementById('questions-error-msg');
 // 질문 단계와 최종 생성 단계 사이에 들고 다닐 기본 입력값이에요.
 let pendingBase = null;
 
+// 지금 화면에 펼쳐져 있는 커리큘럼의 id예요 — 삭제 시 화면도 같이 지울지 판단할 때 써요.
+let currentItemId = null;
+
 function showError(msg) {
   errorMsg.textContent = msg;
   errorMsg.classList.remove('hidden');
@@ -390,6 +393,7 @@ function attachCarouselControls(item) {
 
 function renderCurriculum(item, options = {}) {
   resultSection.classList.remove('hidden');
+  currentItemId = item.id;
 
   if (options.resetIndex || currentWeekIndex == null || currentWeekIndex >= item.weeks.length) {
     currentWeekIndex = firstIncompleteWeekIndex(item);
@@ -551,7 +555,10 @@ async function loadHistory() {
       el.innerHTML = `
         <div class="history-item-row">
           <span>${item.title || item.interest} — ${new Date(item.createdAt).toLocaleString('ko-KR')}</span>
-          <span class="history-percent">${percent}%</span>
+          <span class="history-item-actions">
+            <span class="history-percent">${percent}%</span>
+            <button type="button" class="history-delete" aria-label="이 경로 삭제">✕</button>
+          </span>
         </div>
       `;
       el.addEventListener('click', async () => {
@@ -560,6 +567,27 @@ async function loadHistory() {
         renderCurriculum(full, { resetIndex: true });
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
+
+      el.querySelector('.history-delete').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const ok = window.confirm('이 경로를 삭제할까요? 되돌릴 수 없어요.');
+        if (!ok) return;
+
+        try {
+          const res = await fetch(`/api/curriculum/${item.id}`, { method: 'DELETE' });
+          if (!res.ok) return;
+
+          if (currentItemId === item.id) {
+            resultSection.classList.add('hidden');
+            resultSection.innerHTML = '';
+            currentItemId = null;
+          }
+          loadHistory();
+        } catch (err) {
+          console.error('삭제 실패', err);
+        }
+      });
+
       historyList.appendChild(el);
     });
   } catch (err) {

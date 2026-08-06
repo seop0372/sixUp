@@ -100,6 +100,16 @@ function updateTaskNotes(id, weekIndex, taskIndex, notes) {
   return record;
 }
 
+function deleteCurriculum(id) {
+  const list = readAll();
+  const index = list.findIndex((c) => c.id === id);
+  if (index === -1) return false;
+
+  list.splice(index, 1);
+  writeAll(list);
+  return true;
+}
+
 module.exports = {
   saveCurriculum,
   getAllCurricula,
@@ -107,4 +117,5 @@ module.exports = {
   updateProgress,
   updateWeekTasks,
   updateTaskNotes,
+  deleteCurriculum,
 };

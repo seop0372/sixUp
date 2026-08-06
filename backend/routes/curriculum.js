@@ -474,4 +474,11 @@ router.patch('/:id/notes', (req, res) => {
   res.json(updated);
 });
 
+// DELETE /api/curriculum/:id
+router.delete('/:id', (req, res) => {
+  const deleted = storage.deleteCurriculum(req.params.id);
+  if (!deleted) return res.status(404).json({ error: '커리큘럼을 찾을 수 없어요.' });
+  res.status(204).end();
+});
+
 module.exports = router;
