@@ -453,6 +453,8 @@ function renderQuestions(questions) {
     })
     .join('');
 
+  questionsSubmitBtn.textContent = `${pendingBase.durationWeeks}주 항로 만들기`;
+
   hideQuestionsError();
   questionsSection.classList.remove('hidden');
   questionsSection.scrollIntoView({ behavior: 'smooth' });
@@ -486,7 +488,7 @@ async function generateCurriculum(answers) {
     showQuestionsError('서버에 연결할 수 없어요. 백엔드가 실행 중인지 확인해주세요.');
   } finally {
     questionsSubmitBtn.disabled = false;
-    questionsSubmitBtn.textContent = '6주 항로 만들기';
+    questionsSubmitBtn.textContent = `${pendingBase.durationWeeks}주 항로 만들기`;
   }
 }
 
@@ -497,6 +499,7 @@ form.addEventListener('submit', async (e) => {
   resultSection.classList.add('hidden');
 
   const interest = document.getElementById('interest').value.trim();
+  const durationWeeks = document.getElementById('durationWeeks').value;
   const hoursPerWeek = document.getElementById('hoursPerWeek').value;
   const budget = document.getElementById('budget').value.trim();
 
@@ -507,7 +510,7 @@ form.addEventListener('submit', async (e) => {
     const res = await fetch('/api/curriculum/questions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ interest, hoursPerWeek, budget }),
+      body: JSON.stringify({ interest, durationWeeks, hoursPerWeek, budget }),
     });
 
     const data = await res.json();
@@ -517,7 +520,7 @@ form.addEventListener('submit', async (e) => {
       return;
     }
 
-    pendingBase = { interest, hoursPerWeek, budget };
+    pendingBase = { interest, durationWeeks, hoursPerWeek, budget };
 
     if (data.questions && data.questions.length) {
       renderQuestions(data.questions);

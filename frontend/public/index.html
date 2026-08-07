@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SixUp — 6주 취미 커리큘럼</title>
+<title>SixUp — AI 취미 커리큘럼</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -12,7 +12,7 @@
     <div class="splash-content">
       <span class="eyebrow">Frontier · 취미 탐사</span>
       <h1>Six<span class="accent">Up</span></h1>
-      <p>어디서부터 시작할지 모르겠다면, 관심사 하나만 알려주세요. AI가 6주짜리 항로를 그려드려요.</p>
+      <p>어디서부터 시작할지 모르겠다면, 관심사 하나만 알려주세요. AI가 목표 기간에 맞는 항로를 그려드려요.</p>
       <button type="button" id="start-btn">탐사 시작하기</button>
     </div>
   </section>
@@ -29,6 +29,17 @@
           <label>
             관심 분야
             <input type="text" id="interest" placeholder="예: 캘리그라피, 클라이밍, 우쿨렐레" required />
+          </label>
+          <label>
+            목표 기간
+            <select id="durationWeeks">
+              <option value="2">2주</option>
+              <option value="3">3주</option>
+              <option value="4">4주</option>
+              <option value="6" selected>6주</option>
+              <option value="8">8주</option>
+              <option value="12">12주</option>
+            </select>
           </label>
           <label>
             주당 가능 시간 (시간)
