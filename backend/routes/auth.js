@@ -92,6 +92,7 @@ router.get('/kakao/callback', async (req, res) => {
   const { code, error } = req.query;
   const clientId = process.env.KAKAO_REST_API_KEY;
   const redirectUri = process.env.KAKAO_REDIRECT_URI;
+  const clientSecret = process.env.KAKAO_CLIENT_SECRET;
 
   if (error) {
     return res.redirect('/?kakaoError=' + encodeURIComponent(String(error)));
@@ -102,15 +103,22 @@ router.get('/kakao/callback', async (req, res) => {
 
   try {
     // 1) 인가 코드를 액세스 토큰으로 교환해요.
+    // Kakao Developers에서 Client Secret을 "사용함"으로 켠 경우에만 필요하지만,
+    // 켜져 있는데 안 보내면 토큰 교환이 실패해서 설정돼 있으면 항상 같이 보내요.
+    const tokenParams = {
+      grant_type: 'authorization_code',
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      code: String(code),
+    };
+    if (clientSecret) {
+      tokenParams.client_secret = clientSecret;
+    }
+
     const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: clientId,
-        redirect_uri: redirectUri,
-        code: String(code),
-      }),
+      body: new URLSearchParams(tokenParams),
     });
     const tokenData = await tokenRes.json();
     if (!tokenRes.ok || !tokenData.access_token) {
