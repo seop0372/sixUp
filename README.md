@@ -70,16 +70,22 @@ http://localhost:3000 접속하면 SixUp 화면이 떠요.
 ## 배포 (Render)
 
 1. GitHub에 푸시된 상태에서 https://dashboard.render.com → **New +** → **Blueprint** 선택
-2. 이 저장소를 연결하면 루트의 `render.yaml`을 읽어서 `sixup` 웹 서비스와 1GB Persistent Disk(`/var/data`)를 자동으로 만들어요
+2. 이 저장소를 연결하면 루트의 `render.yaml`을 읽어서 `sixup` 웹 서비스(무료 플랜)를 자동으로 만들어요
 3. `sync: false`로 표시된 환경변수는 대시보드에서 직접 입력해야 해요
    - `ANTHROPIC_API_KEY`
    - `KAKAO_REST_API_KEY` (카카오 로그인 안 쓰면 비워둬도 됨)
    - `KAKAO_REDIRECT_URI` — 배포 후 나온 도메인 기준으로 `https://<서비스명>.onrender.com/api/auth/kakao/callback` 형태로 입력하고, Kakao Developers 콘솔의 Redirect URI에도 동일하게 등록
    - `SESSION_SECRET`은 `generateValue: true`라 Render가 자동으로 랜덤 값을 채워줘요
-4. `plan: starter`(월 $7~)로 설정되어 있어요 — Persistent Disk는 무료 플랜에서 지원 안 돼서, `data/curricula.json`·`data/users.json`이 재배포 후에도 남으려면 유료 플랜이 필요해요. 계속 무료로 쓰고 싶으면 `render.yaml`에서 `disk` 항목을 지우면 되는데, 그러면 재배포/재시작마다 가입자·커리큘럼 데이터가 초기화돼요
+4. `plan: free`로 설정되어 있어요. 무료 플랜은 Persistent Disk를 지원하지 않아서 `data/curricula.json`·`data/users.json`이 로컬(휘발성) 디스크에 저장돼요 — **재배포하거나 15분 넘게 요청이 없어 슬립 상태로 들어갔다 깨어나면 가입자·커리큘럼 데이터가 초기화될 수 있어요.** 데이터를 영구 보존하려면 `render.yaml`에서 `plan`을 `starter`(월 $7~)로 바꾸고 아래처럼 `disk`를 추가한 뒤, `DATA_DIR` 환경변수를 `/var/data`로 지정하세요.
+   ```yaml
+   disk:
+     name: sixup-data
+     mountPath: /var/data
+     sizeGB: 1
+   ```
 5. 배포 완료되면 `https://<서비스명>.onrender.com`으로 접속 확인
 
-세션은 아직 MemoryStore라 서버가 재시작되면 로그인된 사용자는 다시 로그인해야 해요 (데이터 자체는 Persistent Disk 덕분에 안전).
+세션도 MemoryStore라 서버가 재시작되면 로그인된 사용자는 다시 로그인해야 해요. 무료 플랜에서는 슬립 후 깨어날 때마다 이런 재시작이 일어난다는 점 참고하세요.
 
 ## 다음 단계 추천
 
