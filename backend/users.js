@@ -4,9 +4,15 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_FILE = path.join(__dirname, 'data', 'users.json');
+// DATA_DIR을 지정하면 그 경로를 쓰고(Render Persistent Disk 마운트 경로 등),
+// 없으면 로컬 개발 때처럼 backend/data를 써요.
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'users.json');
 
 function ensureDataFile() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2));
   }

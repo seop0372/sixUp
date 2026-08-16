@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: sixup
+    runtime: node
+    plan: starter
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: KAKAO_REST_API_KEY
+        sync: false
+      - key: KAKAO_REDIRECT_URI
+        sync: false
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: sixup-data
+      mountPath: /var/data
+      sizeGB: 1

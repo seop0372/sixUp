@@ -67,6 +67,20 @@ http://localhost:3000 접속하면 SixUp 화면이 떠요.
 - ⬜ 진짜 DB(SQLite 등)로 전환
 - ⬜ 배포 (Vercel/Render 등)
 
+## 배포 (Render)
+
+1. GitHub에 푸시된 상태에서 https://dashboard.render.com → **New +** → **Blueprint** 선택
+2. 이 저장소를 연결하면 루트의 `render.yaml`을 읽어서 `sixup` 웹 서비스와 1GB Persistent Disk(`/var/data`)를 자동으로 만들어요
+3. `sync: false`로 표시된 환경변수는 대시보드에서 직접 입력해야 해요
+   - `ANTHROPIC_API_KEY`
+   - `KAKAO_REST_API_KEY` (카카오 로그인 안 쓰면 비워둬도 됨)
+   - `KAKAO_REDIRECT_URI` — 배포 후 나온 도메인 기준으로 `https://<서비스명>.onrender.com/api/auth/kakao/callback` 형태로 입력하고, Kakao Developers 콘솔의 Redirect URI에도 동일하게 등록
+   - `SESSION_SECRET`은 `generateValue: true`라 Render가 자동으로 랜덤 값을 채워줘요
+4. `plan: starter`(월 $7~)로 설정되어 있어요 — Persistent Disk는 무료 플랜에서 지원 안 돼서, `data/curricula.json`·`data/users.json`이 재배포 후에도 남으려면 유료 플랜이 필요해요. 계속 무료로 쓰고 싶으면 `render.yaml`에서 `disk` 항목을 지우면 되는데, 그러면 재배포/재시작마다 가입자·커리큘럼 데이터가 초기화돼요
+5. 배포 완료되면 `https://<서비스명>.onrender.com`으로 접속 확인
+
+세션은 아직 MemoryStore라 서버가 재시작되면 로그인된 사용자는 다시 로그인해야 해요 (데이터 자체는 Persistent Disk 덕분에 안전).
+
 ## 다음 단계 추천
 
 1. Claude Code로 이 폴더 열고 `/init` 실행해서 CLAUDE.md 만들기

@@ -8,6 +8,13 @@ const authRoutes = require('./routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Render 등은 앞단 프록시가 HTTPS를 처리해요. trust proxy를 켜야
+// secure 쿠키 판단이나 req.protocol이 프록시 뒤에서도 제대로 동작해요.
+if (isProduction) {
+  app.set('trust proxy', 1);
+}
 
 app.use(cors());
 app.use(express.json());
@@ -23,6 +30,7 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
+      secure: isProduction,
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7일
     },
   })
