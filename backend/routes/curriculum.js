@@ -23,6 +23,11 @@ function buildSystemPrompt(durationWeeks) {
 더 구체적인 목표와 계획을 제시하세요 (예: 키/몸무게가 주어지면 운동 강도나
 칼로리를 구체적인 수치로 제안하세요).
 
+각 주차의 tasks는 요일별로 하루 단위까지 구체적으로 나눠서 짜세요.
+- day 값은 반드시 "월","화","수","목","금","토","일" 중 하나여야 하고, 같은 주차 안에서 같은 요일을 두 번 쓰면 안 됩니다.
+- 주당 가능 시간(hoursPerWeek)에 맞춰 요일 수를 정하세요. 예를 들어 주 3시간이면 3개 요일에 1시간씩, 주 7시간이면 7개 요일 모두에 배정하는 식으로, 하루에 몰아서 배정하지 말고 골고루 나누세요.
+- 각 할 일은 "이번 주 안에" 할 일이 아니라 "그 요일 하루에" 실제로 끝낼 수 있는 구체적인 분량으로 쪼개세요 (예: "책 한 권 읽기"가 아니라 "1~2장 읽고 핵심 문장 3개 메모하기").
+
 반드시 아래 JSON 형식으로만 응답하세요. 설명, 코드블록 표시(백틱) 없이 순수 JSON 텍스트만 출력하세요.
 
 {
@@ -33,9 +38,9 @@ function buildSystemPrompt(durationWeeks) {
       "week": 1,
       "goal": "이번 주 목표",
       "tasks": [
-        { "text": "할 일 1" },
-        { "text": "할 일 2" },
-        { "text": "할 일 3" }
+        { "day": "월", "text": "할 일 1" },
+        { "day": "수", "text": "할 일 2" },
+        { "day": "금", "text": "할 일 3" }
       ],
       "resources": ["추천 자료/링크 설명 1", "추천 자료/링크 설명 2"]
     }
@@ -43,7 +48,7 @@ function buildSystemPrompt(durationWeeks) {
 }
 
 weeks 배열은 반드시 ${durationWeeks}개(1주차~${durationWeeks}주차)를 포함해야 합니다.
-tasks 배열의 각 항목은 반드시 "text" 키 하나만 가진 객체여야 합니다.
+tasks 배열의 각 항목은 반드시 "day"와 "text" 두 키만 가진 객체여야 합니다.
 title, description, name, content 등 "text"가 아닌 다른 키 이름은 절대 사용하지 마세요.`;
 }
 
@@ -146,7 +151,7 @@ const REGEN_TASKS_SYSTEM_PROMPT = `당신은 취미 코칭 전문가입니다.
 
 tasks 배열의 각 항목은 반드시 "text" 키 하나만 가진 객체여야 합니다.
 title, description, name, content 등 "text"가 아닌 다른 키 이름은 절대 사용하지 마세요.
-할 일 개수는 2개에서 4개 사이로 만드세요.`;
+각 할 일은 하루 안에 끝낼 수 있는 분량으로 유지하세요 (원래 그 요일에 배정됐던 자리를 그대로 대체하는 것이라, day는 신경 쓰지 않아도 됩니다).`;
 
 // 완료한 할 일은 그대로 두고, 아직 완료하지 않은 할 일만 같은 자리에서 새로 만들어요.
 async function regenerateIncompleteTasks({ curriculum, targetWeekIndex, direction }) {
@@ -195,7 +200,8 @@ ${directionText}
 
   const newTasks = [...targetWeek.tasks];
   pendingIndexes.forEach((taskIdx, i) => {
-    if (finalized[i]) newTasks[taskIdx] = finalized[i];
+    // 새로 만든 할 일에도 원래 그 자리에 배정돼 있던 요일(day)을 그대로 유지해요.
+    if (finalized[i]) newTasks[taskIdx] = { ...finalized[i], day: targetWeek.tasks[taskIdx].day };
   });
   return newTasks;
 }
@@ -385,8 +391,9 @@ router.post('/', async (req, res) => {
 위 조건으로 ${durationWeeks}주 커리큘럼을 만들어주세요.`;
 
   try {
-    // 기간이 길수록 weeks 배열도 커지니, 잘리지 않도록 토큰 한도를 비례해서 늘려요.
-    const maxTokens = Math.min(8000, Math.max(2000, durationWeeks * 700));
+    // 기간이 길수록, 그리고 이제 요일별로 tasks가 최대 7개까지 늘어날 수 있으니
+    // 잘리지 않도록 토큰 한도를 비례해서 늘려요.
+    const maxTokens = Math.min(12000, Math.max(2500, durationWeeks * 1100));
     const curriculum = await callClaudeJSON({
       systemPrompt: buildSystemPrompt(durationWeeks),
       userMessage,

@@ -423,22 +423,56 @@ function renderTaskNotesHtml(weekIndex, taskIndex, task) {
     </div>`;
 }
 
+const DAY_ORDER = ['월', '화', '수', '목', '금', '토', '일'];
+const DAY_LABELS = { 월: '월요일', 화: '화요일', 수: '수요일', 목: '목요일', 금: '금요일', 토: '토요일', 일: '일요일' };
+
+function renderTaskItemHtml(item, weekIndex, task, taskIndex) {
+  const done = isTaskDone(item, weekIndex, taskIndex);
+  return `
+    <div class="task-item">
+      <label class="task ${done ? 'done' : ''}">
+        <input type="checkbox" data-week="${weekIndex}" data-task="${taskIndex}" ${done ? 'checked' : ''} />
+        <span>${getTaskText(task)}</span>
+      </label>
+      ${renderTaskNotesHtml(weekIndex, taskIndex, task)}
+      ${renderTaskResourcesHtml(typeof task === 'object' ? task : {})}
+    </div>`;
+}
+
 // 미션 마커(원형 숫자)/목표/체크리스트/조정 배지는 기존 .week-block 스타일을 그대로 재사용해요.
 function renderWeekCardHtml(item, weekIndex) {
   const week = item.weeks[weekIndex];
-  const tasksHtml = week.tasks
-    .map((task, taskIndex) => {
-      const done = isTaskDone(item, weekIndex, taskIndex);
+
+  // task.day 기준으로 요일별 묶음을 만들어요. day가 없거나 못 알아보는 값이면
+  // (예: day 필드가 생기기 전에 만든 옛날 커리큘럼) 묶지 않고 그냥 목록으로 보여줘요.
+  const byDay = new Map();
+  const undated = [];
+  week.tasks.forEach((task, taskIndex) => {
+    const day = typeof task === 'object' && task && DAY_ORDER.includes(task.day) ? task.day : null;
+    if (day) {
+      if (!byDay.has(day)) byDay.set(day, []);
+      byDay.get(day).push(taskIndex);
+    } else {
+      undated.push(taskIndex);
+    }
+  });
+
+  const dayGroupsHtml = DAY_ORDER.filter((day) => byDay.has(day))
+    .map((day) => {
+      const itemsHtml = byDay
+        .get(day)
+        .map((taskIndex) => renderTaskItemHtml(item, weekIndex, week.tasks[taskIndex], taskIndex))
+        .join('');
       return `
-        <div class="task-item">
-          <label class="task ${done ? 'done' : ''}">
-            <input type="checkbox" data-week="${weekIndex}" data-task="${taskIndex}" ${done ? 'checked' : ''} />
-            <span>${getTaskText(task)}</span>
-          </label>
-          ${renderTaskNotesHtml(weekIndex, taskIndex, task)}
-          ${renderTaskResourcesHtml(typeof task === 'object' ? task : {})}
+        <div class="day-block">
+          <h4 class="day-label">${DAY_LABELS[day]}</h4>
+          ${itemsHtml}
         </div>`;
     })
+    .join('');
+
+  const undatedHtml = undated
+    .map((taskIndex) => renderTaskItemHtml(item, weekIndex, week.tasks[taskIndex], taskIndex))
     .join('');
 
   const adaptedBadge = week.adaptedReason
@@ -450,7 +484,8 @@ function renderWeekCardHtml(item, weekIndex) {
       <h3>${week.week}주차</h3>
       ${adaptedBadge}
       <p class="goal">${week.goal}</p>
-      ${tasksHtml}
+      ${dayGroupsHtml}
+      ${undatedHtml}
     </div>
   `;
 }
