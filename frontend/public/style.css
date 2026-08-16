@@ -116,6 +116,152 @@ body {
   position: relative;
 }
 
+/* ---------- 로그인/회원가입 ---------- */
+.auth-area {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  font-size: 13px;
+}
+
+.auth-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-state.hidden {
+  display: none;
+}
+
+#auth-user-label {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.auth-link-btn {
+  margin: 0;
+  background: none;
+  color: var(--amber-deep);
+  border: 1px solid var(--line);
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+}
+
+.auth-link-btn:hover:not(:disabled) {
+  background: rgba(193, 104, 59, 0.1);
+}
+
+.auth-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.auth-modal.hidden {
+  display: none;
+}
+
+.auth-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  /* 완전히 불투명하게 막아서, 로그인 전 화면(기존 커리큘럼 목록 등)이 뒤로 비쳐 보이지 않게 해요. */
+  background: var(--ink);
+}
+
+.auth-modal-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.auth-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  margin: 0;
+  background: none;
+  color: var(--ink-soft);
+  padding: 4px 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.auth-modal-close:hover:not(:disabled) {
+  background: rgba(36, 54, 58, 0.08);
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.auth-tab {
+  flex: 1;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  padding: 10px;
+  font-size: 13px;
+}
+
+.auth-tab.active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.auth-form.hidden {
+  display: none;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 16px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.kakao-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  border-radius: 3px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  background: #FEE500;
+  color: #191600;
+}
+
+.kakao-login-btn:hover {
+  background: #F5D900;
+}
+
 .hero::after {
   content: '';
   display: block;
@@ -650,6 +796,44 @@ button:hover:not(:disabled) {
   border-color: #B23A3A;
   color: #B23A3A;
   background: rgba(178, 58, 58, 0.08);
+}
+
+.history-badge {
+  margin-right: 6px;
+}
+
+/* ---------- 완주 배지 / 스트릭 ---------- */
+.completion-banner {
+  margin: 0 0 18px;
+  padding: 12px 16px;
+  background: rgba(124, 148, 99, 0.12);
+  border: 1px solid var(--trail-done);
+  border-radius: 4px;
+  color: var(--trail-done);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.celebration-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 14px 22px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(18, 28, 27, 0.25);
+  opacity: 1;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.celebration-toast-out {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-12px);
 }
 
 .muted {

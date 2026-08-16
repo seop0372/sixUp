@@ -19,6 +19,15 @@
 
   <div id="app" class="app hidden">
     <header class="hero">
+      <div id="auth-area" class="auth-area">
+        <div id="auth-logged-out" class="auth-state">
+          <button type="button" id="auth-open-btn" class="auth-link-btn">로그인 / 회원가입</button>
+        </div>
+        <div id="auth-logged-in" class="auth-state hidden">
+          <span id="auth-user-label"></span>
+          <button type="button" id="auth-logout-btn" class="auth-link-btn">로그아웃</button>
+        </div>
+      </div>
       <h1>Six<span class="accent">Up</span></h1>
     </header>
 
@@ -71,6 +80,51 @@
         <div id="history-list"></div>
       </section>
     </main>
+  </div>
+
+  <div id="auth-modal" class="auth-modal hidden">
+    <div id="auth-modal-backdrop" class="auth-modal-backdrop"></div>
+    <div class="auth-modal-content card">
+      <button type="button" id="auth-modal-close" class="auth-modal-close" aria-label="닫기">✕</button>
+
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-tab="login">로그인</button>
+        <button type="button" class="auth-tab" data-tab="signup">회원가입</button>
+      </div>
+
+      <form id="login-form" class="auth-form">
+        <label>
+          이메일
+          <input type="email" id="login-email" required />
+        </label>
+        <label>
+          비밀번호
+          <input type="password" id="login-password" required />
+        </label>
+        <button type="submit">로그인</button>
+      </form>
+
+      <form id="signup-form" class="auth-form hidden">
+        <label>
+          닉네임 (선택)
+          <input type="text" id="signup-nickname" placeholder="예: 탐험가" />
+        </label>
+        <label>
+          이메일
+          <input type="email" id="signup-email" required />
+        </label>
+        <label>
+          비밀번호 (8자 이상)
+          <input type="password" id="signup-password" minlength="8" required />
+        </label>
+        <button type="submit">회원가입</button>
+      </form>
+
+      <p id="auth-error-msg" class="error hidden"></p>
+
+      <div class="auth-divider"><span>또는</span></div>
+      <a href="/api/auth/kakao" class="kakao-login-btn">카카오로 로그인</a>
+    </div>
   </div>
 
   <script src="app.js"></script>

@@ -1,6 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const storage = require('../storage');
+const users = require('../users');
+const requireAuth = require('../requireAuth');
+
+// 이 라우터 전체는 로그인한 사용자만 쓸 수 있어요 — 커리큘럼은 계정별로 나뉘어요.
+router.use(requireAuth);
 
 // 목표 기간(주)을 1~52 사이 정수로 검증해요. 없거나 이상하면 6주로 기본값 처리.
 function resolveDurationWeeks(value) {
@@ -303,6 +308,17 @@ async function finalizeTasks(tasks, interest) {
   return normalized;
 }
 
+// id로 커리큘럼을 찾고, 로그인한 사용자 소유가 맞는지 확인해요.
+// 남의 것이면 있는지 없는지도 알려주지 않으려고 404로 통일해요.
+function findOwnedCurriculum(req, res) {
+  const item = storage.getCurriculumById(req.params.id);
+  if (!item || item.userId !== req.session.userId) {
+    res.status(404).json({ error: '커리큘럼을 찾을 수 없어요.' });
+    return null;
+  }
+  return item;
+}
+
 function buildAnswersText(answers) {
   if (!Array.isArray(answers) || !answers.length) return '';
   const lines = answers
@@ -384,6 +400,7 @@ router.post('/', async (req, res) => {
     );
 
     const saved = storage.saveCurriculum({
+      userId: req.session.userId,
       interest,
       hoursPerWeek,
       budget: budget || null,
@@ -399,15 +416,15 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/curriculum  - 저장된 커리큘럼 전체 목록
+// GET /api/curriculum  - 로그인한 사용자의 커리큘럼 목록
 router.get('/', (req, res) => {
-  res.json(storage.getAllCurricula());
+  res.json(storage.getCurriculaByUser(req.session.userId));
 });
 
-// GET /api/curriculum/:id  - 특정 커리큘럼 상세
+// GET /api/curriculum/:id  - 특정 커리큘럼 상세 (본인 것만)
 router.get('/:id', (req, res) => {
-  const item = storage.getCurriculumById(req.params.id);
-  if (!item) return res.status(404).json({ error: '커리큘럼을 찾을 수 없어요.' });
+  const item = findOwnedCurriculum(req, res);
+  if (!item) return;
   res.json(item);
 });
 
@@ -418,13 +435,22 @@ router.patch('/:id/progress', async (req, res) => {
   const taskIndex = Number(req.body.taskIndex);
   const { done } = req.body;
 
-  const before = storage.getCurriculumById(req.params.id);
-  if (!before) return res.status(404).json({ error: '커리큘럼을 찾을 수 없어요.' });
+  const before = findOwnedCurriculum(req, res);
+  if (!before) return;
 
   const completionBefore = getWeekCompletion(before, weekIndex);
+  const wasCompletedBefore = !!before.completedAt;
 
   const updated = storage.updateProgress(req.params.id, weekIndex, taskIndex, done);
   if (!updated) return res.status(404).json({ error: '커리큘럼을 찾을 수 없어요.' });
+
+  // 할 일을 완료 체크한 순간에만 스트릭을 늘려요 (체크 해제는 스트릭에 영향 없어요).
+  if (done) {
+    users.updateStreak(req.session.userId);
+  }
+
+  // 방금 이 커리큘럼을 100% 완주했으면, 프론트에서 축하 배너를 띄울 수 있게 신호를 실어 보내요.
+  const justCompletedCurriculum = !wasCompletedBefore && !!updated.completedAt;
 
   let suggestion = null;
 
@@ -454,7 +480,11 @@ router.patch('/:id/progress', async (req, res) => {
     }
   }
 
-  res.json(suggestion ? { ...updated, ...suggestion } : updated);
+  res.json({
+    ...updated,
+    ...(suggestion || {}),
+    ...(justCompletedCurriculum ? { justCompletedCurriculum: true } : {}),
+  });
 });
 
 // POST /api/curriculum/:id/adjust-week  { weekIndex, direction: 'harder' | 'easier' }
@@ -463,8 +493,8 @@ router.post('/:id/adjust-week', async (req, res) => {
   const weekIndex = Number(req.body.weekIndex);
   const direction = req.body.direction === 'easier' ? 'easier' : 'harder';
 
-  const curriculum = storage.getCurriculumById(req.params.id);
-  if (!curriculum) return res.status(404).json({ error: '커리큘럼을 찾을 수 없어요.' });
+  const curriculum = findOwnedCurriculum(req, res);
+  if (!curriculum) return;
 
   if (!Number.isInteger(weekIndex) || !curriculum.weeks[weekIndex]) {
     return res.status(400).json({ error: '해당 주차를 찾을 수 없어요.' });
@@ -489,6 +519,8 @@ router.post('/:id/adjust-week', async (req, res) => {
 
 // PATCH /api/curriculum/:id/notes  { weekIndex, taskIndex, notes }
 router.patch('/:id/notes', (req, res) => {
+  if (!findOwnedCurriculum(req, res)) return;
+
   const weekIndex = Number(req.body.weekIndex);
   const taskIndex = Number(req.body.taskIndex);
   const notes = typeof req.body.notes === 'string' ? req.body.notes : '';
@@ -500,6 +532,8 @@ router.patch('/:id/notes', (req, res) => {
 
 // DELETE /api/curriculum/:id
 router.delete('/:id', (req, res) => {
+  if (!findOwnedCurriculum(req, res)) return;
+
   const deleted = storage.deleteCurriculum(req.params.id);
   if (!deleted) return res.status(404).json({ error: '커리큘럼을 찾을 수 없어요.' });
   res.status(204).end();

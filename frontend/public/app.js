@@ -8,10 +8,215 @@ const resultSection = document.getElementById('result');
 const historyList = document.getElementById('history-list');
 const submitBtn = document.getElementById('submit-btn');
 
+// 로그인 여부에 따라 "탐사 시작하기" 눌렀을 때 로그인 화면을 보여줄지 결정해요.
+let isAuthenticated = false;
+
 startBtn.addEventListener('click', () => {
   splash.classList.add('hidden');
   app.classList.remove('hidden');
+
+  if (!isAuthenticated) {
+    setAuthTab('login');
+    openAuthModal();
+  }
 });
+
+// ---------- 로그인/회원가입 ----------
+const authOpenBtn = document.getElementById('auth-open-btn');
+const authLoggedOut = document.getElementById('auth-logged-out');
+const authLoggedIn = document.getElementById('auth-logged-in');
+const authUserLabel = document.getElementById('auth-user-label');
+const authLogoutBtn = document.getElementById('auth-logout-btn');
+
+const authModal = document.getElementById('auth-modal');
+const authModalBackdrop = document.getElementById('auth-modal-backdrop');
+const authModalClose = document.getElementById('auth-modal-close');
+const authTabs = document.querySelectorAll('.auth-tab');
+const loginForm = document.getElementById('login-form');
+const signupForm = document.getElementById('signup-form');
+const authErrorMsg = document.getElementById('auth-error-msg');
+
+function showAuthError(msg) {
+  authErrorMsg.textContent = msg;
+  authErrorMsg.classList.remove('hidden');
+}
+
+function hideAuthError() {
+  authErrorMsg.classList.add('hidden');
+}
+
+function openAuthModal() {
+  hideAuthError();
+  authModal.classList.remove('hidden');
+}
+
+function closeAuthModal() {
+  authModal.classList.add('hidden');
+  loginForm.reset();
+  signupForm.reset();
+  hideAuthError();
+}
+
+function setAuthTab(tab) {
+  hideAuthError();
+  authTabs.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
+  loginForm.classList.toggle('hidden', tab !== 'login');
+  signupForm.classList.toggle('hidden', tab !== 'signup');
+}
+
+// 닉네임 옆에 연속 기록(스트릭)을 같이 보여줘요. 아직 하루도 안 채웠으면 안 보여요.
+function updateAuthUserLabel(user) {
+  const streak = user.streak && user.streak.current > 0 ? ` · 🔥 ${user.streak.current}일 연속` : '';
+  authUserLabel.textContent = `${user.nickname || user.email || '탐험가'}님 환영해요${streak}`;
+}
+
+// 할 일 체크 직후 스트릭만 가볍게 갱신해요 (목록 전체를 다시 불러오진 않아요).
+async function refreshStreakLabel() {
+  try {
+    const res = await fetch('/api/auth/me');
+    if (!res.ok) return;
+    const user = await res.json();
+    updateAuthUserLabel(user);
+  } catch (err) {
+    // 조용히 무시 — 스트릭 표시는 부가 기능이라 실패해도 앱 동작엔 영향 없어요.
+  }
+}
+
+function renderLoggedIn(user) {
+  isAuthenticated = true;
+  authLoggedOut.classList.add('hidden');
+  authLoggedIn.classList.remove('hidden');
+  updateAuthUserLabel(user);
+  loadHistory();
+}
+
+function renderLoggedOut() {
+  isAuthenticated = false;
+  authLoggedIn.classList.add('hidden');
+  authLoggedOut.classList.remove('hidden');
+
+  // 로그아웃하면 방금까지 보이던 다른 계정 데이터가 남아있으면 안 되니 화면에서 지워요.
+  historyList.innerHTML = '';
+  resultSection.classList.add('hidden');
+  resultSection.innerHTML = '';
+  currentItemId = null;
+}
+
+async function checkAuth() {
+  try {
+    const res = await fetch('/api/auth/me');
+    if (!res.ok) {
+      renderLoggedOut();
+      return;
+    }
+    const user = await res.json();
+    renderLoggedIn(user);
+  } catch (err) {
+    renderLoggedOut();
+  }
+}
+
+authOpenBtn.addEventListener('click', () => {
+  setAuthTab('login');
+  openAuthModal();
+});
+
+authModalClose.addEventListener('click', closeAuthModal);
+authModalBackdrop.addEventListener('click', closeAuthModal);
+
+authTabs.forEach((btn) => {
+  btn.addEventListener('click', () => setAuthTab(btn.dataset.tab));
+});
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hideAuthError();
+
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showAuthError(data.error || '로그인에 실패했어요.');
+      return;
+    }
+
+    renderLoggedIn(data);
+    closeAuthModal();
+  } catch (err) {
+    showAuthError('서버에 연결할 수 없어요. 백엔드가 실행 중인지 확인해주세요.');
+  }
+});
+
+signupForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hideAuthError();
+
+  const nickname = document.getElementById('signup-nickname').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+
+  try {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nickname, email, password }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showAuthError(data.error || '회원가입에 실패했어요.');
+      return;
+    }
+
+    renderLoggedIn(data);
+    closeAuthModal();
+  } catch (err) {
+    showAuthError('서버에 연결할 수 없어요. 백엔드가 실행 중인지 확인해주세요.');
+  }
+});
+
+authLogoutBtn.addEventListener('click', async () => {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch (err) {
+    console.error('로그아웃 실패', err);
+  } finally {
+    renderLoggedOut();
+  }
+});
+
+// 카카오 로그인 콜백이 성공/실패하면 각각 ?kakaoLogin=1 / ?kakaoError=... 를 달고 돌아와요.
+(function handleKakaoRedirectParams() {
+  const params = new URLSearchParams(window.location.search);
+  const kakaoError = params.get('kakaoError');
+  const kakaoLogin = params.get('kakaoLogin');
+  if (!kakaoError && !kakaoLogin) return;
+
+  // 스플래시를 건너뛰고 바로 앱 화면으로 보내줘요 — 로그인하러 여기까지 온 사람이니까요.
+  splash.classList.add('hidden');
+  app.classList.remove('hidden');
+
+  if (kakaoError) {
+    setAuthTab('login');
+    openAuthModal();
+    showAuthError('카카오 로그인에 실패했어요. 다시 시도해주세요.');
+  }
+
+  params.delete('kakaoError');
+  params.delete('kakaoLogin');
+  const query = params.toString();
+  window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : ''));
+})();
+
+checkAuth();
 
 const questionsSection = document.getElementById('questions-section');
 const questionsForm = document.getElementById('questions-form');
@@ -318,9 +523,17 @@ function attachTaskCheckboxListeners(item) {
         if (!res.ok) return;
 
         item.progress = updated.progress;
+        item.completedAt = updated.completedAt;
 
-        if (updated.suggestAdjustment) {
-          addSuggestion(item, updated.weekIndex, updated.suggestAdjustment);
+        if (done) refreshStreakLabel();
+
+        if (updated.justCompletedCurriculum) {
+          showCelebration('🏆 완주했어요! 정말 잘하셨어요');
+          loadHistory(); // 목록에도 완주 배지가 바로 뜨게 해요.
+        }
+
+        if (updated.suggestAdjustment || updated.justCompletedCurriculum) {
+          if (updated.suggestAdjustment) addSuggestion(item, updated.weekIndex, updated.suggestAdjustment);
           renderCurriculum(item);
         }
       } catch (err) {
@@ -328,6 +541,16 @@ function attachTaskCheckboxListeners(item) {
       }
     });
   });
+}
+
+// 화면 위쪽에 잠깐 떴다 사라지는 축하 배너예요.
+function showCelebration(message) {
+  const toast = document.createElement('div');
+  toast.className = 'celebration-toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.classList.add('celebration-toast-out'), 2600);
+  setTimeout(() => toast.remove(), 3200);
 }
 
 function goToWeek(item, index) {
@@ -416,8 +639,13 @@ function renderCurriculum(item, options = {}) {
     )
     .join('');
 
+  const completionBannerHtml = item.completedAt
+    ? `<div class="completion-banner">🏆 완주한 항로예요 — ${new Date(item.completedAt).toLocaleDateString('ko-KR')}</div>`
+    : '';
+
   resultSection.innerHTML = `
     <h2>${item.title}</h2>
+    ${completionBannerHtml}
     ${renderProgressBar(item)}
     ${renderSuggestionsHtml(item)}
     <div class="week-carousel">
@@ -554,6 +782,11 @@ async function loadHistory() {
     const res = await fetch('/api/curriculum');
     const list = await res.json();
 
+    if (!res.ok) {
+      historyList.innerHTML = '<p class="muted">로그인이 필요해요.</p>';
+      return;
+    }
+
     if (!list.length) {
       historyList.innerHTML = '<p class="muted">아직 만든 커리큘럼이 없어요.</p>';
       return;
@@ -563,10 +796,11 @@ async function loadHistory() {
     list.forEach((item) => {
       const el = document.createElement('div');
       el.className = 'history-item';
-      const percent = item.progress ? item.progress.percent : 0;
+      const { percent } = calcProgress(item);
+      const badgeHtml = item.completedAt ? '<span class="history-badge" title="완주">🏆</span>' : '';
       el.innerHTML = `
         <div class="history-item-row">
-          <span>${item.title || item.interest} — ${new Date(item.createdAt).toLocaleString('ko-KR')}</span>
+          <span>${badgeHtml}${item.title || item.interest} — ${new Date(item.createdAt).toLocaleString('ko-KR')}</span>
           <span class="history-item-actions">
             <span class="history-percent">${percent}%</span>
             <button type="button" class="history-delete" aria-label="이 항로 삭제">✕</button>
@@ -606,5 +840,3 @@ async function loadHistory() {
     historyList.innerHTML = '<p class="muted">목록을 불러오지 못했어요.</p>';
   }
 }
-
-loadHistory();

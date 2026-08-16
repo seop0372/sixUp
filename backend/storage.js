@@ -44,8 +44,26 @@ function getAllCurricula() {
   return readAll();
 }
 
+// 특정 사용자가 만든 커리큘럼만 걸러서 돌려줘요. (userId가 없는 옛날 데이터는 아무한테도 안 보여요.)
+function getCurriculaByUser(userId) {
+  return readAll().filter((c) => c.userId === userId);
+}
+
 function getCurriculumById(id) {
   return readAll().find((c) => c.id === id) || null;
+}
+
+// 모든 주차의 모든 할 일이 다 체크됐는지 확인해요. (완주 배지 판단용)
+function isFullyDone(record) {
+  let total = 0;
+  let done = 0;
+  (record.weeks || []).forEach((week, weekIndex) => {
+    (week.tasks || []).forEach((task, taskIndex) => {
+      total += 1;
+      if (record.progress && record.progress[`${weekIndex}-${taskIndex}`]) done += 1;
+    });
+  });
+  return total > 0 && done === total;
 }
 
 function updateProgress(id, weekIndex, taskIndex, done) {
@@ -57,6 +75,14 @@ function updateProgress(id, weekIndex, taskIndex, done) {
   if (!record.progress) record.progress = {};
   const key = `${weekIndex}-${taskIndex}`;
   record.progress[key] = done;
+
+  // 완주 배지: 방금 다 채웠으면 완주 시각을 기록하고, 다시 체크 해제해서
+  // 100% 밑으로 내려가면 배지도 같이 사라져요.
+  if (isFullyDone(record)) {
+    if (!record.completedAt) record.completedAt = new Date().toISOString();
+  } else {
+    record.completedAt = null;
+  }
 
   writeAll(list);
   return record;
@@ -113,6 +139,7 @@ function deleteCurriculum(id) {
 module.exports = {
   saveCurriculum,
   getAllCurricula,
+  getCurriculaByUser,
   getCurriculumById,
   updateProgress,
   updateWeekTasks,
