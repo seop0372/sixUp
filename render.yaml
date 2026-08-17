@@ -17,3 +17,8 @@ services:
         sync: false
       - key: KAKAO_REDIRECT_URI
         sync: false
+      # 배포 서버는 Shell 접속이 없어서 scripts/createAdmin.js를 못 돌려요.
+      # 이 값을 채우면 POST /api/admin/bootstrap 으로 admin 계정을 원격 생성/승격할 수 있어요.
+      # 다 쓴 뒤에는 값을 지워서(빈 값으로 저장 or 변수 삭제) 라우트를 다시 막아두는 걸 권장해요.
+      - key: ADMIN_BOOTSTRAP_SECRET
+        sync: false

@@ -6,6 +6,7 @@ const path = require('path');
 const curriculumRoutes = require('./routes/curriculum');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
+const adminBootstrapRoutes = require('./routes/adminBootstrap');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,6 +41,10 @@ app.use(
 // API 라우트
 app.use('/api/curriculum', curriculumRoutes);
 app.use('/api/auth', authRoutes);
+// bootstrap은 로그인 없이 비밀키로만 접근하는 라우트예요. adminRoutes 안의
+// router.use(requireAuth, ...)가 같은 prefix의 모든 요청을 먼저 가로채 버리니,
+// 반드시 adminRoutes보다 먼저 등록해야 해요.
+app.use('/api/admin', adminBootstrapRoutes);
 app.use('/api/admin', adminRoutes);
 
 // 프론트엔드 정적 파일 서빙 (frontend/public 폴더)
