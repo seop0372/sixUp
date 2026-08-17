@@ -5,6 +5,7 @@ const session = require('express-session');
 const path = require('path');
 const curriculumRoutes = require('./routes/curriculum');
 const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,6 +40,7 @@ app.use(
 // API 라우트
 app.use('/api/curriculum', curriculumRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 프론트엔드 정적 파일 서빙 (frontend/public 폴더)
 app.use(express.static(path.join(__dirname, '..', 'frontend', 'public')));

@@ -61,7 +61,8 @@ function findById(id) {
 }
 
 // email + passwordHash 조합으로 계정을 만들어요. (카카오로 만든 계정은 passwordHash가 없어요.)
-function createUser({ email, passwordHash, nickname }) {
+// role은 회원가입 라우트에서는 절대 넘기지 않아요 — admin 계정은 scripts/createAdmin.js로만 만들어요.
+function createUser({ email, passwordHash, nickname, role }) {
   const list = readAll();
   const record = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
@@ -71,6 +72,7 @@ function createUser({ email, passwordHash, nickname }) {
     kakaoId: null,
     nickname: nickname || null,
     phone: null, // 나중에 리마인더 기능에서 채울 필드예요.
+    role: role === 'admin' ? 'admin' : 'user',
     streak: defaultStreak(),
   };
   list.unshift(record);
@@ -89,11 +91,39 @@ function createKakaoUser({ kakaoId, nickname }) {
     kakaoId,
     nickname: nickname || null,
     phone: null,
+    role: 'user',
     streak: defaultStreak(),
   };
   list.unshift(record);
   writeAll(list);
   return record;
+}
+
+// 관리자 전용 화면(회원 목록 등)에서 쓸, 전체 사용자 목록이에요.
+function findAll() {
+  return readAll();
+}
+
+// 기존 계정을 관리자로 승격하거나 되돌릴 때 써요. scripts/createAdmin.js 전용이고,
+// 일반 API 라우트에서는 절대 호출하지 않아요.
+function setRole(userId, role) {
+  const list = readAll();
+  const user = list.find((u) => u.id === userId);
+  if (!user) return null;
+  user.role = role === 'admin' ? 'admin' : 'user';
+  writeAll(list);
+  return user;
+}
+
+// 비밀번호를 재설정할 때 써요. scripts/createAdmin.js 전용이고,
+// 일반 API 라우트(회원가입/로그인)에서는 절대 호출하지 않아요.
+function setPasswordHash(userId, passwordHash) {
+  const list = readAll();
+  const user = list.find((u) => u.id === userId);
+  if (!user) return null;
+  user.passwordHash = passwordHash;
+  writeAll(list);
+  return user;
 }
 
 // 오늘 할 일을 하나라도 완료했을 때 호출해요. 어제도 활동했으면 스트릭을 이어가고,
@@ -130,8 +160,11 @@ module.exports = {
   findByEmail,
   findByKakaoId,
   findById,
+  findAll,
   createUser,
   createKakaoUser,
   updateStreak,
+  setRole,
+  setPasswordHash,
   toPublicUser,
 };
