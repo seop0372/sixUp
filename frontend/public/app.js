@@ -162,12 +162,14 @@ signupForm.addEventListener('submit', async (e) => {
   const nickname = document.getElementById('signup-nickname').value.trim();
   const email = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
+  // 화면엔 입력칸이 없어요 — URL에 ?adminSecret=... 이 붙어 있을 때만 조용히 같이 보내요.
+  const adminSecret = new URLSearchParams(window.location.search).get('adminSecret') || undefined;
 
   try {
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nickname, email, password }),
+      body: JSON.stringify({ nickname, email, password, adminSecret }),
     });
     const data = await res.json();
 

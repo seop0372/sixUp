@@ -9,9 +9,12 @@ function setSession(req, userId) {
   req.session.userId = userId;
 }
 
-// POST /api/auth/signup  { email, password, nickname }
+// POST /api/auth/signup  { email, password, nickname, adminSecret }
+// adminSecret은 화면에 노출된 필드가 아니라, ADMIN_BOOTSTRAP_SECRET을 아는 사람만
+// (프론트 URL에 ?adminSecret=... 붙여서) 회원가입과 동시에 admin으로 가입할 수 있게
+// 하는 숨겨진 통로예요. 값이 없거나 서버 설정과 다르면 그냥 평범한 회원가입이에요.
 router.post('/signup', async (req, res) => {
-  const { email, password, nickname } = req.body;
+  const { email, password, nickname, adminSecret } = req.body;
 
   if (!email || !EMAIL_RE.test(email)) {
     return res.status(400).json({ error: '올바른 이메일을 입력해주세요.' });
@@ -23,8 +26,11 @@ router.post('/signup', async (req, res) => {
     return res.status(409).json({ error: '이미 가입된 이메일이에요.' });
   }
 
+  const configuredSecret = process.env.ADMIN_BOOTSTRAP_SECRET;
+  const role = configuredSecret && adminSecret === configuredSecret ? 'admin' : 'user';
+
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = users.createUser({ email, passwordHash, nickname });
+  const user = users.createUser({ email, passwordHash, nickname, role });
   setSession(req, user.id);
   res.status(201).json(users.toPublicUser(user));
 });
