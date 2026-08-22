@@ -21,6 +21,25 @@ startBtn.addEventListener('click', () => {
   }
 });
 
+// ---------- 홈 랜딩 히어로: CTA 버튼 → 폼 + 지난 항로 나타나며 스크롤 ----------
+// 처음엔 form-section, history-section에 hidden 클래스가 붙어 있어서(index.html)
+// 둘 다 안 보이다가, CTA를 누르면 그때 hidden을 떼고 fade-in 애니메이션을 붙인 뒤
+// 폼 위치로 스크롤해요. 지난 항로를 불러오는 로직(loadHistory 등) 자체는 그대로라
+// 화면에서만 숨겨져 있을 뿐, 로그인 상태면 데이터는 이미 뒤에서 준비돼 있어요.
+const landingCtaBtn = document.getElementById('landing-cta-btn');
+const formSection = document.getElementById('form-section');
+const historySection = document.getElementById('history-section');
+
+landingCtaBtn.addEventListener('click', () => {
+  [formSection, historySection].forEach((section) => {
+    if (section.classList.contains('hidden')) {
+      section.classList.remove('hidden');
+      section.classList.add('form-reveal');
+    }
+  });
+  formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
 // ---------- 로그인/회원가입 ----------
 const authOpenBtn = document.getElementById('auth-open-btn');
 const authLoggedOut = document.getElementById('auth-logged-out');

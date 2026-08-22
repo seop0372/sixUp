@@ -293,6 +293,84 @@ main {
   gap: 28px;
 }
 
+/* ---------- 랜딩 히어로: 홈 CTA 섹션 ---------- */
+.landing-hero {
+  text-align: center;
+  padding: 8px 12px 4px;
+}
+
+.landing-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber-deep);
+  margin: 0 0 14px;
+}
+
+.landing-headline {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 38px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  margin: 0 0 14px;
+  color: var(--ink);
+}
+
+.landing-sub {
+  font-size: 16px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin: 0 auto 28px;
+  max-width: 440px;
+}
+
+.landing-cta {
+  display: inline-block;
+  margin: 0 0 24px;
+  background: var(--amber);
+  color: #241812;
+  font-weight: 700;
+  padding: 16px 40px;
+  border-radius: 999px;
+  font-size: 16px;
+}
+
+.landing-cta:hover:not(:disabled) {
+  background: var(--amber-deep);
+  color: #fff;
+}
+
+.landing-proof {
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(193, 104, 59, 0.06);
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* CTA를 눌러 폼/지난 항로 섹션이 처음 나타날 때만 붙는 클래스예요. */
+@keyframes formReveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#form-section.form-reveal,
+#history-section.form-reveal {
+  animation: formReveal 0.5s ease;
+}
+
 .card {
   background: var(--paper-card);
   border: 1px solid var(--line);
@@ -870,6 +948,7 @@ input:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+    animation: none !important;
   }
 }
 
@@ -883,5 +962,15 @@ input:focus-visible {
   }
   .card {
     padding: 22px;
+  }
+  .landing-headline {
+    font-size: 26px;
+  }
+  .landing-sub {
+    font-size: 14px;
+  }
+  .landing-cta {
+    width: 100%;
+    padding: 16px 20px;
   }
 }
